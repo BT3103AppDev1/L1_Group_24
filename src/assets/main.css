@@ -1,35 +1,85 @@
 @import './base.css';
+@import './components.css';
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+:root {
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-strong: rgba(255, 255, 255, 0.9);
+  --surface-outline: rgba(255, 255, 255, 0.58);
+  --ring-primary: rgba(59, 130, 246, 0.18);
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef8ff 0%, #dff0ff 100%);
+}
+
+#app,
+#app-root {
+  min-height: 100vh;
+}
+
+#app-root {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+main {
+  padding: 0;
+  min-height: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
 }
 
 a,
-.green {
+a:hover {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+::selection {
+  background: rgba(59, 130, 246, 0.18);
+  color: var(--color-text-main);
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+.app-main {
+  flex: 1;
+  padding: 0 0 calc(var(--space-2xl) + env(safe-area-inset-bottom, 0px));
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+.glass-surface {
+  background: var(--surface-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--surface-outline);
+  box-shadow: var(--shadow-lg);
+}
+
+.card p:last-child,
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.queue-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }
