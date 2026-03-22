@@ -5,134 +5,119 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
   routes: [
 
-    // ---------------------------------------------------------------------------
-    // Public
-    // ---------------------------------------------------------------------------
-
+    // Public views
     {
       path: '/',
       name: 'Home',
-      component: () => import('@/views/patient/HomeView.vue'),
+      component: () => import('@/views/HomeView.vue'), // CHANGE TO '@/views/patients/HomeView.vue' AFTER FOLDER HAS BEEN CREATED
     },
-    {
-      path: '/clinics',
-      name: 'ClinicDirectory',
-      component: () => import('@/views/patient/directory/ClinicDirectoryView.vue'),
-    },
-    {
-      path: '/clinics/:clinicId',
-      name: 'ClinicDetail',
-      component: () => import('@/views/patient/directory/ClinicDetailView.vue'),
-    },
+    // {
+    //   path: '/clinics',
+    //   name: 'ClinicDirectory',
+    //   component: () => import('@/views/patient/directory/ClinicDirectoryView.vue'),
+    // },
+    // {
+    //   path: '/clinics/:clinicId',
+    //   name: 'ClinicDetail',
+    //   component: () => import('@/views/patient/directory/ClinicDetailView.vue'),
+    // },
 
-    // ---------------------------------------------------------------------------
-    // Patient Auth
-    // ---------------------------------------------------------------------------
+    // // Patient Authentication views
+    // {
+    //   path: '/register',
+    //   name: 'PatientRegister',
+    //   component: () => import('@/views/patient/auth/RegisterView.vue'),
+    //   meta: { guestOnly: true },
+    // },
+    // {
+    //   path: '/login',
+    //   name: 'PatientLogin',
+    //   component: () => import('@/views/patient/auth/LoginView.vue'),
+    //   meta: { guestOnly: true },
+    // },
+    // {
+    //   path: '/forgot-password',
+    //   name: 'ForgotPassword',
+    //   component: () => import('@/views/patient/auth/ForgotPasswordView.vue'),
+    //   meta: { guestOnly: true },
+    // },
+    // {
+    //   path: '/reset-password',
+    //   name: 'ResetPassword',
+    //   component: () => import('@/views/patient/auth/ResetPasswordView.vue'),
+    // },
 
-    {
-      path: '/register',
-      name: 'PatientRegister',
-      component: () => import('@/views/patient/auth/RegisterView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/login',
-      name: 'PatientLogin',
-      component: () => import('@/views/patient/auth/LoginView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/forgot-password',
-      name: 'ForgotPassword',
-      component: () => import('@/views/patient/auth/ForgotPasswordView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/reset-password',
-      name: 'ResetPassword',
-      component: () => import('@/views/patient/auth/ResetPasswordView.vue'),
-    },
+    // // Patient Specific views
+    // {
+    //   path: '/patient/dashboard',
+    //   name: 'PatientDashboard',
+    //   component: () => import('@/views/patient/dashboard/DashboardView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+    // {
+    //   path: '/patient/profile',
+    //   name: 'PatientProfile',
+    //   component: () => import('@/views/patient/profile/ProfileView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+    // {
+    //   path: '/patient/queue',
+    //   name: 'QueueTracker',
+    //   component: () => import('@/views/patient/queue/QueueTrackerView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+    // {
+    //   path: '/clinics/:clinicId/join',
+    //   name: 'JoinQueue',
+    //   component: () => import('@/views/patient/directory/JoinQueueView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
 
-    // ---------------------------------------------------------------------------
-    // Patient Specific
-    // ---------------------------------------------------------------------------
+    // // Clinic Authentication views
+    // {
+    //   path: '/clinic/register',
+    //   name: 'ClinicRegister',
+    //   component: () => import('@/views/clinic/auth/ClinicRegisterView.vue'),
+    //   meta: { guestOnly: true },
+    // },
+    // {
+    //   path: '/clinic/login',
+    //   name: 'ClinicLogin',
+    //   component: () => import('@/views/clinic/auth/ClinicLoginView.vue'),
+    //   meta: { guestOnly: true },
+    // },
 
-    {
-      path: '/patient/dashboard',
-      name: 'PatientDashboard',
-      component: () => import('@/views/patient/dashboard/DashboardView.vue'),
-      meta: { requiresAuth: true, role: 'patient' },
-    },
-    {
-      path: '/patient/profile',
-      name: 'PatientProfile',
-      component: () => import('@/views/patient/profile/ProfileView.vue'),
-      meta: { requiresAuth: true, role: 'patient' },
-    },
-    {
-      path: '/patient/queue',
-      name: 'QueueTracker',
-      component: () => import('@/views/patient/queue/QueueTrackerView.vue'),
-      meta: { requiresAuth: true, role: 'patient' },
-    },
-    {
-      path: '/clinics/:clinicId/join',
-      name: 'JoinQueue',
-      component: () => import('@/views/patient/directory/JoinQueueView.vue'),
-      meta: { requiresAuth: true, role: 'patient' },
-    },
-
-    // ---------------------------------------------------------------------------
-    // Clinic Auth
-    // ---------------------------------------------------------------------------
-
-    {
-      path: '/clinic/register',
-      name: 'ClinicRegister',
-      component: () => import('@/views/clinic/auth/ClinicRegisterView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/clinic/login',
-      name: 'ClinicLogin',
-      component: () => import('@/views/clinic/auth/ClinicLoginView.vue'),
-      meta: { guestOnly: true },
-    },
-
-    // ---------------------------------------------------------------------------
-    // Clinic Specific
-    // ---------------------------------------------------------------------------
-
-    {
-      path: '/clinic/setup',
-      name: 'ServiceSetup',
-      component: () => import('@/views/clinic/auth/ServiceSetupView.vue'),
-      meta: { requiresAuth: true, role: 'clinic' },
-    },
-    {
-      path: '/clinic/dashboard',
-      name: 'ClinicDashboard',
-      component: () => import('@/views/clinic/queue/QueueDashboardView.vue'),
-      meta: { requiresAuth: true, role: 'clinic' },
-    },
-    {
-      path: '/clinic/queue-list',
-      name: 'QueueList',
-      component: () => import('@/views/clinic/queue/QueueListView.vue'),
-      meta: { requiresAuth: true, role: 'clinic' },
-    },
-    {
-      path: '/clinic/profile',
-      name: 'ClinicProfile',
-      component: () => import('@/views/clinic/profile/ClinicProfileView.vue'),
-      meta: { requiresAuth: true, role: 'clinic' },
-    },
-    {
-      path: '/clinic/services',
-      name: 'ManageServices',
-      component: () => import('@/views/clinic/profile/ManageServicesView.vue'),
-      meta: { requiresAuth: true, role: 'clinic' },
-    },
+    // // Clinic Specific views
+    // {
+    //   path: '/clinic/setup',
+    //   name: 'ServiceSetup',
+    //   component: () => import('@/views/clinic/auth/ServiceSetupView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/dashboard',
+    //   name: 'ClinicDashboard',
+    //   component: () => import('@/views/clinic/queue/QueueDashboardView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/queue-list',
+    //   name: 'QueueList',
+    //   component: () => import('@/views/clinic/queue/QueueListView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/profile',
+    //   name: 'ClinicProfile',
+    //   component: () => import('@/views/clinic/profile/ClinicProfileView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/services',
+    //   name: 'ManageServices',
+    //   component: () => import('@/views/clinic/profile/ManageServicesView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
   ],
 })
 
