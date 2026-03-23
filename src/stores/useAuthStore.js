@@ -6,6 +6,13 @@ export const useAuthStore = defineStore('auth', {
     clinic: null
   }),
   actions: {
+    loginPatient({ email, password }) {
+      if (!email || !password) {
+        throw new Error('Email and password are required')
+      }
+
+      this.user = { email, role: 'patient' }
+    },
     setUser(user) {
       this.user = user
     },
