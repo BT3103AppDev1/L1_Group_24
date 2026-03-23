@@ -29,12 +29,12 @@ const router = createRouter({
     //   component: () => import('@/views/patient/auth/RegisterView.vue'),
     //   meta: { guestOnly: true },
     // },
-    // {
-    //   path: '/login',
-    //   name: 'PatientLogin',
-    //   component: () => import('@/views/patient/auth/LoginView.vue'),
-    //   meta: { guestOnly: true },
-    // },
+    {
+      path: '/login',
+      name: 'PatientLogin',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { guestOnly: true },
+     },
     // {
     //   path: '/forgot-password',
     //   name: 'ForgotPassword',
@@ -53,7 +53,7 @@ const router = createRouter({
     //   name: 'PatientDashboard',
     //   component: () => import('@/views/patient/dashboard/DashboardView.vue'),
     //   meta: { requiresAuth: true, role: 'patient' },
-    // },
+    //},
     // {
     //   path: '/patient/profile',
     //   name: 'PatientProfile',
