@@ -80,12 +80,12 @@ const router = createRouter({
     //   component: () => import('@/views/clinic/auth/ClinicRegisterView.vue'),
     //   meta: { guestOnly: true },
     // },
-    // {
-    //   path: '/clinic/login',
-    //   name: 'ClinicLogin',
-    //   component: () => import('@/views/clinic/auth/ClinicLoginView.vue'),
-    //   meta: { guestOnly: true },
-    // },
+    {
+       path: '/clinic/login',
+       name: 'ClinicLogin',
+       component: () => import('@/views/LoginView.vue'),
+       meta: { guestOnly: true },
+     },
 
     // // Clinic Specific views
     // {
