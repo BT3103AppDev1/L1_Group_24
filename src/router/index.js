@@ -23,12 +23,12 @@ const router = createRouter({
     // },
 
     // // Patient Authentication views
-    // {
-    //   path: '/register',
-    //   name: 'PatientRegister',
-    //   component: () => import('@/views/patient/auth/RegisterView.vue'),
-    //   meta: { guestOnly: true },
-    // },
+    {
+      path: '/register',
+      name: 'PatientRegister',
+      component: () => import('@/views/RegisterView.vue'),
+      meta: { guestOnly: true },
+    },
     {
       path: '/login',
       name: 'PatientLogin',
