@@ -74,12 +74,12 @@ const router = createRouter({
     // },
 
     // // Clinic Authentication views
-    // {
-    //   path: '/clinic/register',
-    //   name: 'ClinicRegister',
-    //   component: () => import('@/views/clinic/auth/ClinicRegisterView.vue'),
-    //   meta: { guestOnly: true },
-    // },
+    {
+      path: '/clinic/register',
+      name: 'ClinicRegister',
+      component: () => import('@/views/ClinicRegisterView.vue'),
+      meta: { guestOnly: true },
+    },
     {
        path: '/clinic/login',
        name: 'ClinicLogin',
