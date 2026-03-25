@@ -11,16 +11,16 @@ const router = createRouter({
       name: 'Home',
       component: () => import('@/views/HomeView.vue'), // CHANGE TO '@/views/patients/HomeView.vue' AFTER FOLDER HAS BEEN CREATED
     },
-    // {
-    //   path: '/clinics',
-    //   name: 'ClinicDirectory',
-    //   component: () => import('@/views/patient/directory/ClinicDirectoryView.vue'),
-    // },
-    // {
-    //   path: '/clinics/:clinicId',
-    //   name: 'ClinicDetail',
-    //   component: () => import('@/views/patient/directory/ClinicDetailView.vue'),
-    // },
+    {
+      path: '/clinics',
+      name: 'ClinicDirectory',
+      component: () => import('@/views/ClinicDirectoryView.vue'),
+    },
+    {
+      path: '/clinics/:clinicId',
+      name: 'ClinicDetail',
+      component: () => import('@/views/ClinicDetailView.vue'),
+    },
 
     // // Patient Authentication views
     {
