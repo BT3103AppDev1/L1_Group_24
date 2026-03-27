@@ -1,22 +1,123 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(),
+  scrollBehavior: () => ({ top: 0 }),
   routes: [
+
+    // Public views
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'Home',
+      component: () => import('@/views/HomeView.vue'), // CHANGE TO '@/views/patients/HomeView.vue' AFTER FOLDER HAS BEEN CREATED
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      path: '/clinics',
+      name: 'ClinicDirectory',
+      component: () => import('@/views/ClinicDirectoryView.vue'),
     },
+    {
+      path: '/clinics/:clinicId',
+      name: 'ClinicDetail',
+      component: () => import('@/views/ClinicDetailView.vue'),
+    },
+
+    // // Patient Authentication views
+    {
+      path: '/register',
+      name: 'PatientRegister',
+      component: () => import('@/views/RegisterView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/login',
+      name: 'PatientLogin',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { guestOnly: true },
+     },
+    // {
+    //   path: '/forgot-password',
+    //   name: 'ForgotPassword',
+    //   component: () => import('@/views/patient/auth/ForgotPasswordView.vue'),
+    //   meta: { guestOnly: true },
+    // },
+    // {
+    //   path: '/reset-password',
+    //   name: 'ResetPassword',
+    //   component: () => import('@/views/patient/auth/ResetPasswordView.vue'),
+    // },
+
+    // // Patient Specific views
+    // {
+    //   path: '/patient/dashboard',
+    //   name: 'PatientDashboard',
+    //   component: () => import('@/views/patient/dashboard/DashboardView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    //},
+    // {
+    //   path: '/patient/profile',
+    //   name: 'PatientProfile',
+    //   component: () => import('@/views/patient/profile/ProfileView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+    // {
+    //   path: '/patient/queue',
+    //   name: 'QueueTracker',
+    //   component: () => import('@/views/patient/queue/QueueTrackerView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+    // {
+    //   path: '/clinics/:clinicId/join',
+    //   name: 'JoinQueue',
+    //   component: () => import('@/views/patient/directory/JoinQueueView.vue'),
+    //   meta: { requiresAuth: true, role: 'patient' },
+    // },
+
+    // // Clinic Authentication views
+    {
+      path: '/clinic/register',
+      name: 'ClinicRegister',
+      component: () => import('@/views/ClinicRegisterView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+       path: '/clinic/login',
+       name: 'ClinicLogin',
+       component: () => import('@/views/LoginView.vue'),
+       meta: { guestOnly: true },
+     },
+
+    // // Clinic Specific views
+    // {
+    //   path: '/clinic/setup',
+    //   name: 'ServiceSetup',
+    //   component: () => import('@/views/clinic/auth/ServiceSetupView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/dashboard',
+    //   name: 'ClinicDashboard',
+    //   component: () => import('@/views/clinic/queue/QueueDashboardView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/queue-list',
+    //   name: 'QueueList',
+    //   component: () => import('@/views/clinic/queue/QueueListView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/profile',
+    //   name: 'ClinicProfile',
+    //   component: () => import('@/views/clinic/profile/ClinicProfileView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
+    // {
+    //   path: '/clinic/services',
+    //   name: 'ManageServices',
+    //   component: () => import('@/views/clinic/profile/ManageServicesView.vue'),
+    //   meta: { requiresAuth: true, role: 'clinic' },
+    // },
   ],
 })
 
