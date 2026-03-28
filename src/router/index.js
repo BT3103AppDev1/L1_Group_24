@@ -94,12 +94,12 @@ const router = createRouter({
     //   component: () => import('@/views/clinic/auth/ServiceSetupView.vue'),
     //   meta: { requiresAuth: true, role: 'clinic' },
     // },
-    // {
-    //   path: '/clinic/dashboard',
-    //   name: 'ClinicDashboard',
-    //   component: () => import('@/views/clinic/queue/QueueDashboardView.vue'),
-    //   meta: { requiresAuth: true, role: 'clinic' },
-    // },
+    {
+      path: '/clinic/dashboard',
+      name: 'ClinicDashboard',
+      component: () => import('@/views/QueueDashboardView.vue'),
+      meta: { requiresAuth: true, role: 'clinic' },
+    },
     // {
     //   path: '/clinic/queue-list',
     //   name: 'QueueList',
