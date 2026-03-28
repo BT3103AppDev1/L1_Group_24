@@ -16,9 +16,14 @@ export const useAuthStore = defineStore('auth', {
         throw new Error('Email and password are required')
       }
 
-      this.user = {
-        email,
-        role: 'patient'
+      // Hardcoded mock credentials so you can test the patient dashboard UI
+      if (email === 'patient@test.com' && password === '123456') {
+        this.user = {
+          email,
+          role: 'patient'
+        }
+      } else {
+        throw new Error('Invalid mock credentials. Try patient@test.com / 123456')
       }
 
       this.clinic = null

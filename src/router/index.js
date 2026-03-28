@@ -47,13 +47,12 @@ const router = createRouter({
     //   component: () => import('@/views/patient/auth/ResetPasswordView.vue'),
     // },
 
-    // // Patient Specific views
-    // {
-    //   path: '/patient/dashboard',
-    //   name: 'PatientDashboard',
-    //   component: () => import('@/views/patient/dashboard/DashboardView.vue'),
-    //   meta: { requiresAuth: true, role: 'patient' },
-    //},
+    // Patient Specific views
+    {
+      path: '/patient/dashboard',
+      name: 'PatientDashboard',
+      component: () => import('@/views/DashboardView.vue'),
+    },
     // {
     //   path: '/patient/profile',
     //   name: 'PatientProfile',
