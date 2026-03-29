@@ -10,10 +10,8 @@ import {
 import {
   createPatient,
   getPatient,
-  updatePatient,
   createClinic,
   getClinic,
-  updateClinic
 } from '@/firebase/firestore.js'
 
 // converts clinic contact numbers to emails because Firebase Auth only supports email/password natively
@@ -130,7 +128,7 @@ export const useAuthStore = defineStore('auth', {
     async registerClinic({
       clinicName,
       district,
-      address,
+      postalCode,
       contactNumber,
       operatingHours,
       services,
@@ -138,18 +136,19 @@ export const useAuthStore = defineStore('auth', {
     }) {
       this.loading = true
       try {
-        const credential = await registerWithEmail(email, password)
+        const derivedEmail = phoneToEmail(contactNumber)
+
+        const credential = await registerWithEmail(derivedEmail, password)
         const uid = credential.user.uid
-        const email = phoneToEmail(contactNumber)
 
         await createClinic(uid, {
           clinicName,
           district,
-          address,
+          postalCode,
           contactNumber,
           operatingHours: operatingHours || {},
           services: services || [],
-          email
+          email: derivedEmail
         })
 
         const clinic = await getClinic(uid)
@@ -167,12 +166,12 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // sign in an existing clinic 
-    async loginClinic({ email, password }) {
+    async loginClinic({ contactNumber, password }) {
       this.loading = true
       try {
         // Reconstruct the same derived email used at registration
-        const email = phoneToEmail(contactNumber)
-        const credential = await loginWithEmail(email, password)
+        const derivedEmail = phoneToEmail(contactNumber)
+        const credential = await loginWithEmail(derivedEmail, password)
         const uid = credential.user.uid
 
         const clinic = await getClinic(uid)
