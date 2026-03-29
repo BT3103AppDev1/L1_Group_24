@@ -1,53 +1,214 @@
 // User login state
 
 import { defineStore } from 'pinia'
+import {
+  registerWithEmail,
+  loginWithEmail,
+  logout,
+  onAuthChange
+} from '@/firebase/auth.js'
+import {
+  createPatient,
+  getPatient,
+  updatePatient,
+  createClinic,
+  getClinic,
+  updateClinic
+} from '@/firebase/firestore.js'
+
+// converts clinic contact numbers to emails because Firebase Auth only supports email/password natively
+function phoneToEmail(contactNumber) {
+  return `${contactNumber}@clinicq.app`
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    clinic: null
+    patient: null,
+    clinic: null,
+    role: null,
+    loading: false,
+    initialized: false,
   }),
 
   getters: {
-    clinicId: (state) => state.clinic?.clinicId || null
+    isLoggedIn: (state) => !!state.user,
+    isPatient: (state) => state.role === 'patient',
+    isClinic: (state) => state.role === 'clinic',
+    patientId: (state) => state.patient?.uid || null,
+    clinicId: (state) => state.clinic?.uid || null
   },
 
   actions: {
-    loginPatient({ email, password }) {
-      if (!email || !password) {
-        throw new Error('Email and password are required')
-      }
+    // set up Firebase Auth listener to get user data
+    initAuth() {
+      onAuthChange(async (firebaseUser) => {
+        this.user = firebaseUser
 
-      // Hardcoded mock credentials so you can test the patient dashboard UI
-      if (email === 'patient@test.com' && password === '123456') {
-        this.user = {
-          email,
-          role: 'patient'
+        if (firebaseUser) {
+          try {
+            const patient = await getPatient(firebaseUser.uid)
+
+            // try patient first
+            if (patient) {
+              this.patient = patient
+              this.clinic = null
+              this.role = 'patient'
+            } else {
+              // fall back to clinic
+              const clinic = await getClinic(firebaseUser.uid)
+              if (clinic) {
+                this.clinic = clinic
+                this.patient = null
+                this.role = 'clinic'
+              } else {
+                // authenticated but no Firestore profile found
+                this.patient = null
+                this.clinic  = null
+                this.role    = null
+              }
+            }
+          } catch (err) {
+            console.error('[AuthStore] initAuth profile fetch error:', err)
+          }
+        } else {
+          // Signed out — clear everything
+          this.patient = null
+          this.clinic  = null
+          this.role    = null
         }
-      } else {
-        throw new Error('Invalid mock credentials. Try patient@test.com / 123456')
-      }
 
-      this.clinic = null
+        this.initialized = true
+      })
     },
 
-    loginClinic({ email, password }) {
-      if (!email || !password) {
-        throw new Error('Email and password are required')
-      }
+    // register a new patient account
+    async registerPatient({ fullName, email, mobileNumber, postalCode, password }) {
+      this.loading = true
+      try {
+        const credential = await registerWithEmail(email, password)
+        const uid = credential.user.uid
 
-      // Hardcoded mock credentials so you can test the dashboard UI
-      if (email === 'clinic@test.com' && password === '123456') {
-        this.clinic = {
-          email,
-          role: 'clinic',
-          clinicId: 'mock_clinic_123'
-        }
-      } else {
-        throw new Error('Invalid mock credentials. Try clinic@test.com / 123456')
-      }
+        await createPatient(uid, { fullName, email, mobileNumber, postalCode })
 
-      this.user = null
+        const patient = await getPatient(uid)
+
+        this.user    = credential.user
+        this.patient = patient
+        this.clinic  = null
+        this.role    = 'patient'
+      } catch (err) {
+        console.error('[AuthStore] registerPatient error:', err)
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // sign in an existing patient
+    async loginPatient({ email, password }) {
+      this.loading = true
+      try {
+        const credential = await loginWithEmail(email, password)
+        const uid = credential.user.uid
+
+        const patient = await getPatient(uid)
+
+        this.user = credential.user
+        this.patient = patient
+        this.clinic = null
+        this.role = 'patient'
+      } catch (err) {
+        console.error('[AuthStore] loginPatient error:', err)
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // register a new clinic account
+    async registerClinic({
+      clinicName,
+      district,
+      address,
+      contactNumber,
+      operatingHours,
+      services,
+      password
+    }) {
+      this.loading = true
+      try {
+        const credential = await registerWithEmail(email, password)
+        const uid = credential.user.uid
+        const email = phoneToEmail(contactNumber)
+
+        await createClinic(uid, {
+          clinicName,
+          district,
+          address,
+          contactNumber,
+          operatingHours: operatingHours || {},
+          services: services || [],
+          email
+        })
+
+        const clinic = await getClinic(uid)
+
+        this.user = credential.user
+        this.clinic = clinic
+        this.patient = null
+        this.role = 'clinic'
+      } catch (err) {
+        console.error('[AuthStore] registerClinic error:', err)
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // sign in an existing clinic 
+    async loginClinic({ email, password }) {
+      this.loading = true
+      try {
+        // Reconstruct the same derived email used at registration
+        const email = phoneToEmail(contactNumber)
+        const credential = await loginWithEmail(email, password)
+        const uid = credential.user.uid
+
+        const clinic = await getClinic(uid)
+
+        this.user = credential.user
+        this.clinic = clinic
+        this.patient = null
+        this.role = 'clinic'
+      } catch (err) {
+        console.error('[AuthStore] loginClinic error:', err)
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // signs out current user and clears all auth state
+    async logoutUser() {
+      this.loading = true
+      try {
+        await logout()
+        this.user = null
+        this.patient = null
+        this.clinic = null
+        this.role = null
+      } catch (err) {
+        console.error('[AuthStore] logoutUser error:', err)
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // alias for logoutUser - used by views that call authStore.logout()
+    async logout() {
+      return this.logoutUser()
     },
 
     setUser(user) {
@@ -57,10 +218,5 @@ export const useAuthStore = defineStore('auth', {
     setClinic(clinic) {
       this.clinic = clinic
     },
-
-    logout() {
-      this.user = null
-      this.clinic = null
-    }
   }
 })
