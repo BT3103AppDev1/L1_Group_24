@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { registerWithEmail } from '@/firebase/auth.js'
+import { createClinic } from '@/firebase/firestore.js'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -11,6 +13,30 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    async registerClinic(payload) {
+      // Create user in Firebase Auth
+      const userCredential = await registerWithEmail(payload.email, payload.password)
+      const user = userCredential.user
+
+      // Add extra details to Firestore
+      const clinicData = {
+        clinicName: payload.name,
+        contactNumber: payload.contactNumber,
+        email: payload.email,
+        address: payload.address,
+        postalCode: payload.postalCode,
+        district: payload.district,
+        role: 'clinic',
+        services: [] // Add empty services array by default
+      }
+      
+      await createClinic(user.uid, clinicData)
+
+      // Set the current clinic in store
+      this.clinic = { ...clinicData, clinicId: user.uid, role: 'clinic' }
+      this.user = null
+    },
+
     loginPatient({ email, password }) {
       if (!email || !password) {
         throw new Error('Email and password are required')
