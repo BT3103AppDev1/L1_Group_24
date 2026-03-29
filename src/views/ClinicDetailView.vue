@@ -25,7 +25,12 @@
           <li v-for="serviceId in clinic.services" :key="serviceId" class="service-item">
             <div>
               <strong>{{ serviceName(serviceId) }}</strong>
-              <span class="service-time">~{{ clinic.waitByService?.[serviceId] || clinic.averageWaitTime }} min/patient</span>
+              <span class="service-time"
+                >~{{
+                  clinic.waitByService?.[serviceId] || clinic.averageWaitTime
+                }}
+                min/patient</span
+              >
             </div>
             <span class="status">{{ isOpen ? 'Waiting' : 'Closed' }}</span>
           </li>
@@ -43,47 +48,54 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppBadge from '@/components/base/AppBadge.vue'
+import { getClinic, getAllServices, subscribeToClinicQueues } from '@/firebase/firestore'
 
 const route = useRoute()
 const router = useRouter()
 
-const servicesData = ref([
-  { id: 'general', name: 'General Practice' },
-  { id: 'dental', name: 'Dental' },
-  { id: 'pediatrics', name: 'Pediatrics' },
-  { id: 'vaccination', name: 'Vaccination' },
-])
-
-const clinics = ref([
-  {
-    id: 'clinic-1',
-    clinicName: 'Clementi Family Clinic',
-    district: 'Clementi',
-    address: '123 Clementi Ave',
-    contactNumber: '60123456',
-    operatingHours: { mon: { open: true, start: '09:00', end: '18:00' }, tue: { open: true, start: '09:00', end: '18:00' } },
-    averageWaitTime: 15,
-    waitByService: { general: 15, vaccination: 20 },
-    services: ['general', 'vaccination'],
-  },
-  {
-    id: 'clinic-2',
-    clinicName: 'Bukit Timah Care',
-    district: 'Bukit Timah',
-    address: '80 Bukit Timah Rd',
-    contactNumber: '60223457',
-    operatingHours: { mon: { open: true, start: '08:30', end: '17:30' }, tue: { open: true, start: '08:30', end: '17:30' } },
-    averageWaitTime: 8,
-    waitByService: { dental: 10, pediatrics: 8 },
-    services: ['dental', 'pediatrics'],
-  },
-])
-
 const clinicId = computed(() => route.params.clinicId)
-const clinic = computed(() => clinics.value.find((c) => c.id === clinicId.value))
+const servicesData = ref([])
+const clinicRef = ref(null)
+const waitByService = ref({})
+let queuesUnsubscribe = null
+
+onMounted(async () => {
+  try {
+    servicesData.value = await getAllServices()
+    const fetchedClinic = await getClinic(clinicId.value)
+    if (fetchedClinic) {
+      // Provide a default empty services array if missing
+      clinicRef.value = { ...fetchedClinic, services: fetchedClinic.services || [] }
+    }
+  } catch (err) {
+    console.error('Error fetching clinic data:', err)
+  }
+
+  queuesUnsubscribe = subscribeToClinicQueues(clinicId.value, (queues) => {
+    const waits = {}
+    queues.forEach((q) => {
+      const duration = q.avgDuration || 15
+      waits[q.serviceId] = (q.activeCount || 0) * duration
+    })
+    waitByService.value = waits
+  })
+})
+
+onUnmounted(() => {
+  if (queuesUnsubscribe) queuesUnsubscribe()
+})
+
+const clinic = computed(() => {
+  if (!clinicRef.value) return null
+  return {
+    ...clinicRef.value,
+    waitByService: waitByService.value,
+    averageWaitTime: clinicRef.value.averageWaitTime || 15,
+  }
+})
 
 function serviceName(id) {
   return servicesData.value.find((s) => s.id === id)?.name || id
@@ -122,22 +134,98 @@ function joinQueue() {
 </script>
 
 <style scoped>
-.page-container { max-width: 900px; margin: 0 auto; padding: 1rem; }
-.back-btn { display: inline-block; margin-bottom: 1rem; color: #1d4ed8; font-weight: 700; text-decoration: none; }
-.card { background: white; border-radius: 1rem; border: 1px solid #dbeafe; box-shadow: 0 10px 22px rgba(59, 130, 246, 0.08); padding: 1.2rem; margin-bottom: 1rem; }
-.clinic-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.clinic-header h1 { margin: 0; font-size: 2rem; color: #1d4ed8; }
-.meta { color: #64748b; margin: 0.3rem 0; }
-.services-section h2 { margin: 0 0 0.7rem; color: #1e3a8a; }
-.service-item { padding: 0.8rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; border-radius: 0.85rem; border: 1px solid #dbeafe; background: #eef6ff; }
-.service-item strong { color: #1d4ed8; }
-.service-time { margin-left: 0.5rem; color: #475569; }
-.status { font-weight: 700; color: #2563eb; }
-.no-services { color: #475569; margin: 0; }
-.queue-cta { text-align: center; margin-top: 0.5rem; }
-.status-note { margin: 0 0 0.75rem; color: #b45309; background-color: #fffbeb; padding: 0.75rem; border-radius: 0.75rem; }
-.btn { border: 0; border-radius: 0.75rem; padding: 0.8rem 1.2rem; font-size: 1rem; font-weight: 700; cursor: pointer; }
-.btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.empty-state { text-align: center; }
+.page-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.back-btn {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: none;
+}
+.card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.08);
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+.clinic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.clinic-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #1d4ed8;
+}
+.meta {
+  color: #64748b;
+  margin: 0.3rem 0;
+}
+.services-section h2 {
+  margin: 0 0 0.7rem;
+  color: #1e3a8a;
+}
+.service-item {
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.85rem;
+  border: 1px solid #dbeafe;
+  background: #eef6ff;
+}
+.service-item strong {
+  color: #1d4ed8;
+}
+.service-time {
+  margin-left: 0.5rem;
+  color: #475569;
+}
+.status {
+  font-weight: 700;
+  color: #2563eb;
+}
+.no-services {
+  color: #475569;
+  margin: 0;
+}
+.queue-cta {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+.status-note {
+  margin: 0 0 0.75rem;
+  color: #b45309;
+  background-color: #fffbeb;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+.btn {
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.empty-state {
+  text-align: center;
+}
 </style>
