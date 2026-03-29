@@ -6,7 +6,12 @@
     </section>
 
     <section class="directory-filters card">
-      <input v-model="search" type="search" placeholder="Search clinic name..." aria-label="Search clinics" />
+      <input
+        v-model="search"
+        type="search"
+        placeholder="Search clinic name..."
+        aria-label="Search clinics"
+      />
       <select v-model="district" aria-label="Filter by district">
         <option value="">All Districts</option>
         <option v-for="d in districts" :key="d" :value="d">{{ d }}</option>
@@ -24,21 +29,38 @@
         <div class="clinic-card-top">
           <div>
             <h2>{{ clinic.clinicName }}</h2>
-            <p class="clinic-meta">{{ clinic.district }} · {{ formatTodayHours(clinic.operatingHours) }} · {{ clinic.distance?.toFixed(1) }} km</p>
+            <p class="clinic-meta">
+              {{ clinic.district }} · {{ formatTodayHours(clinic.operatingHours) }} ·
+              {{ Number(clinic.distance || 0).toFixed(1) }} km
+            </p>
           </div>
-          <AppBadge :variant="isClinicOpen(clinic) ? 'open' : 'closed'">{{ isClinicOpen(clinic) ? 'Open' : 'Closed' }}</AppBadge>
+          <AppBadge :variant="isClinicOpen(clinic) ? 'open' : 'closed'">{{
+            isClinicOpen(clinic) ? 'Open' : 'Closed'
+          }}</AppBadge>
         </div>
 
         <p class="clinic-address">{{ clinic.address }}</p>
 
         <div class="service-tags">
-          <span v-for="svcId in (clinic.services || []).slice(0, 3)" :key="svcId" class="svc-chip">{{ serviceName(svcId) }}</span>
-          <span v-if="clinic.services && clinic.services.length > 3" class="svc-more">+{{ clinic.services.length - 3 }} more</span>
+          <span
+            v-for="svcId in (clinic.services || []).slice(0, 3)"
+            :key="svcId"
+            class="svc-chip"
+            >{{ serviceName(svcId) }}</span
+          >
+          <span v-if="clinic.services && clinic.services.length > 3" class="svc-more"
+            >+{{ clinic.services.length - 3 }} more</span
+          >
         </div>
 
         <div class="clinic-bottom">
-          <span class="wait">Est. wait: {{ clinic.averageWaitTime ? `~${clinic.averageWaitTime} min` : 'No wait' }}</span>
-          <button class="btn btn-primary" type="button" @click="viewDetail(clinic.id)">View details</button>
+          <span class="wait"
+            >Est. wait:
+            {{ clinic.averageWaitTime ? `~${clinic.averageWaitTime} min` : 'No wait' }}</span
+          >
+          <button class="btn btn-primary" type="button" @click="viewDetail(clinic.id)">
+            View details
+          </button>
         </div>
       </article>
     </section>
@@ -46,9 +68,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppBadge from '@/components/base/AppBadge.vue'
+import { subscribeToAllClinics, getAllServices } from '@/firebase/firestore'
 
 const router = useRouter()
 
@@ -57,37 +80,33 @@ const district = ref('')
 const service = ref('')
 const openNow = ref(false)
 
-const servicesData = ref([
-  { id: 'general', name: 'General Practice' },
-  { id: 'dental', name: 'Dental' },
-  { id: 'pediatrics', name: 'Pediatrics' },
-  { id: 'vaccination', name: 'Vaccination' },
-])
+const servicesData = ref([])
+const clinics = ref([])
+let clinicsUnsubscribe = null
 
-const clinics = ref([
-  {
-    id: 'clinic-1',
-    clinicName: 'Clementi Family Clinic',
-    district: 'Clementi',
-    address: '123 Clementi Ave',
-    distance: 2.1,
-    operatingHours: { mon: { open: true, start: '09:00', end: '18:00' }, tue: { open: true, start: '09:00', end: '18:00' } },
-    averageWaitTime: 12,
-    services: ['general', 'vaccination'],
-    contactNumber: '60123456',
-  },
-  {
-    id: 'clinic-2',
-    clinicName: 'Bukit Timah Care',
-    district: 'Bukit Timah',
-    address: '80 Bukit Timah Rd',
-    distance: 4.8,
-    operatingHours: { mon: { open: true, start: '08:30', end: '17:30' }, tue: { open: true, start: '08:30', end: '17:30' } },
-    averageWaitTime: 6,
-    services: ['dental', 'pediatrics'],
-    contactNumber: '60223457',
-  },
-])
+onMounted(async () => {
+  try {
+    servicesData.value = await getAllServices()
+    clinicsUnsubscribe = subscribeToAllClinics((data) => {
+      // Map clinics to include distance or default values if they're missing
+      // (assuming distance is not in DB for now, add a mock distance so UI doesn't look empty)
+      clinics.value = data.map((c) => ({
+        ...c,
+        clinicName: c.clinicName || 'Unnamed Clinic',
+        district: c.district || 'Unknown District',
+        services: c.services || [],
+        operatingHours: c.operatingHours || {},
+        distance: c.distance || Math.random() * 5 + 1,
+      }))
+    })
+  } catch (err) {
+    console.error('Error fetching data:', err)
+  }
+})
+
+onUnmounted(() => {
+  if (clinicsUnsubscribe) clinicsUnsubscribe()
+})
 
 const districts = computed(() => {
   return Array.from(new Set(clinics.value.map((clinic) => clinic.district))).sort()
@@ -109,13 +128,13 @@ const filteredClinics = computed(() => {
 
 function isClinicOpen(clinic) {
   const hrs = clinic.operatingHours || {}
-  const day = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]
+  const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
   const today = hrs[day]
   if (!today?.open) return false
   const toMin = (t) => {
-    if (!t) return 0
+    if (!t || typeof t !== 'string') return 0
     const [hh, mm] = t.split(':').map(Number)
-    return hh * 60 + (mm || 0)
+    return (hh || 0) * 60 + (mm || 0)
   }
   const now = new Date()
   const total = now.getHours() * 60 + now.getMinutes()
@@ -123,10 +142,10 @@ function isClinicOpen(clinic) {
 }
 
 function formatTodayHours(operatingHours) {
-  const day = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]
+  const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
   const today = (operatingHours || {})[day]
   if (!today || !today.open) return 'Closed today'
-  return `${today.start} - ${today.end}`
+  return `${today.start || '00:00'} - ${today.end || '23:59'}`
 }
 
 function viewDetail(clinicId) {
@@ -135,30 +154,131 @@ function viewDetail(clinicId) {
 </script>
 
 <style scoped>
-.page-container { max-width: 900px; margin: 0 auto; padding: 1rem; }
-.card { background: white; border-radius: 1rem; border: 1px solid #e0edfc; box-shadow: 0 8px 20px rgba(28, 94, 212, 0.08); padding: 1rem; margin-bottom: 1rem; }
-.directory-hero { text-align: center; padding: 1.6rem; }
-.directory-hero h1 { margin: 0 0 0.5rem; font-size: 2rem; color: #1d4ed8; }
-.directory-hero p { margin: 0; color: #64748b; }
-.directory-filters { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.8rem; align-items: center; }
-.directory-filters input, .directory-filters select { border: 1px solid #dbeafe; border-radius: 0.75rem; padding: 0.7rem 0.85rem; background: #fff; }
-.openswitch { display: inline-flex; align-items: center; gap: 0.45rem; color: #334155; font-size: 0.94rem; font-weight: 700; }
-.clinic-list { margin-top: 1rem; }
-.clinic-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
-.clinic-card h2 { margin: 0; font-size: 1.25rem; }
-.clinic-meta { margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem; }
-.clinic-address { margin: 0.65rem 0; color: #475569; font-size: 0.95rem; }
-.service-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.75rem; }
-.svc-chip { border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.78rem; padding: 0.3rem 0.65rem; }
-.svc-more { color: #64748b; font-size: 0.78rem; }
-.clinic-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
-.wait { color: #0f766e; font-weight: 700; }
-.btn { border: 0; border-radius: 0.65rem; padding: 0.55rem 0.9rem; cursor: pointer; }
-.btn-primary { background: linear-gradient(135deg,#3b82f6,#6366f1); color: white; }
-.no-results { color: #64748b; text-align: center; font-weight: 700; margin-top: 1rem; }
+.page-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e0edfc;
+  box-shadow: 0 8px 20px rgba(28, 94, 212, 0.08);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.directory-hero {
+  text-align: center;
+  padding: 1.6rem;
+}
+.directory-hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  color: #1d4ed8;
+}
+.directory-hero p {
+  margin: 0;
+  color: #64748b;
+}
+.directory-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+.directory-filters input,
+.directory-filters select {
+  border: 1px solid #dbeafe;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
+}
+.openswitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #334155;
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+.clinic-list {
+  margin-top: 1rem;
+}
+.clinic-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.clinic-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.clinic-meta {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.clinic-address {
+  margin: 0.65rem 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+.service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+.svc-chip {
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.65rem;
+}
+.svc-more {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+.clinic-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.wait {
+  color: #0f766e;
+  font-weight: 700;
+}
+.btn {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+}
+.no-results {
+  color: #64748b;
+  text-align: center;
+  font-weight: 700;
+  margin-top: 1rem;
+}
 @media (max-width: 720px) {
-  .directory-filters { grid-template-columns: 1fr; }
-  .clinic-bottom { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-  .clinic-bottom .btn { width: 100%; }
+  .directory-filters {
+    grid-template-columns: 1fr;
+  }
+  .clinic-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .clinic-bottom .btn {
+    width: 100%;
+  }
 }
 </style>
