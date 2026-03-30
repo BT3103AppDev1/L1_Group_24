@@ -2,12 +2,15 @@
   <div class="clinic-detail page-container">
     <router-link to="/clinics" class="back-btn">← Back to Clinic Directory</router-link>
 
-    <div v-if="!clinic" class="empty-state card">
+    <AppSpinner v-if="pageLoading" />
+
+    <div v-else-if="!clinic" class="empty-state card">
       <h2>Clinic not found</h2>
       <p>Please return to the directory and choose another clinic.</p>
     </div>
 
     <div v-else>
+      <!-- Clinic Header -->
       <section class="clinic-header card">
         <div>
           <h1>{{ clinic.clinicName }}</h1>
@@ -18,29 +21,45 @@
         <AppBadge :variant="isOpen ? 'open' : 'closed'">{{ isOpen ? 'Open' : 'Closed' }}</AppBadge>
       </section>
 
+      <!-- Services List — click a service to select it -->
       <section class="services-section card">
         <h2>Services</h2>
         <p v-if="clinic.services.length === 0" class="no-services">No services available.</p>
-        <ul>
-          <li v-for="serviceId in clinic.services" :key="serviceId" class="service-item">
-            <div>
-              <strong>{{ serviceName(serviceId) }}</strong>
-              <span class="service-time"
-                >~{{
-                  clinic.waitByService?.[serviceId] || clinic.averageWaitTime
-                }}
-                min/patient</span
-              >
+        <ul v-else>
+          <li v-for="svcId in clinic.services" :key="svcId" class="service-item"
+            :class="{ selected: selectedServiceId === svcId }" @click="selectedServiceId = svcId">
+            <div class="service-info">
+              <strong>{{ serviceName(svcId) }}</strong>
+              <span class="service-time">
+                Est. wait: ~{{ waitByService[svcId] ?? 0 }} min
+                · {{ queueCountByService[svcId] ?? 0 }} waiting
+              </span>
             </div>
-            <span class="status">{{ isOpen ? 'Waiting' : 'Closed' }}</span>
+            <span v-if="selectedServiceId === svcId" class="selected-tick">✓</span>
+            <span v-else class="status">{{ isOpen ? 'Open' : 'Closed' }}</span>
           </li>
         </ul>
       </section>
 
+      <!-- Join Queue CTA -->
       <div class="queue-cta card">
         <p v-if="!isOpen" class="status-note">⚠️ This clinic is currently closed.</p>
-        <button class="btn btn-primary" :disabled="!isOpen" @click="joinQueue">
-          Join Queue — {{ isOpen ? 'Now' : 'Unavailable' }}
+
+        <p v-if="isOpen && !selectedServiceId" class="hint-note">
+          👆 Select a service above, then click Join Queue.
+        </p>
+
+        <p v-if="selectedServiceId" class="selected-note">
+          Joining: <strong>{{ serviceName(selectedServiceId) }}</strong>
+        </p>
+
+        <AlertBanner v-if="joinError" type="error" :message="joinError" dismissible @dismiss="joinError = ''" />
+
+        <button class="btn btn-primary" :disabled="!isOpen || !selectedServiceId || joining" @click="handleJoinQueue">
+          <span v-if="joining">Joining…</span>
+          <span v-else-if="!isOpen">Clinic Closed</span>
+          <span v-else-if="!selectedServiceId">Select a Service First</span>
+          <span v-else>Join Queue Now</span>
         </button>
       </div>
     </div>
@@ -51,15 +70,26 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppBadge from '@/components/base/AppBadge.vue'
+import AppSpinner from '@/components/base/AppSpinner.vue'
+import AlertBanner from '@/components/shared/AlertBanner.vue'
 import { getClinic, getAllServices, subscribeToClinicQueues } from '@/firebase/firestore'
+import { useQueueStore } from '@/stores/useQueueStore.js'
+import { useAuthStore } from '@/stores/useAuthStore.js'
 
 const route = useRoute()
 const router = useRouter()
+const queueStore = useQueueStore()
+const authStore = useAuthStore()
 
 const clinicId = computed(() => route.params.clinicId)
 const servicesData = ref([])
 const clinicRef = ref(null)
 const waitByService = ref({})
+const queueCountByService = ref({})
+const pageLoading = ref(true)
+const selectedServiceId = ref('')
+const joining = ref(false)
+const joinError = ref('')
 let queuesUnsubscribe = null
 
 onMounted(async () => {
@@ -67,20 +97,26 @@ onMounted(async () => {
     servicesData.value = await getAllServices()
     const fetchedClinic = await getClinic(clinicId.value)
     if (fetchedClinic) {
-      // Provide a default empty services array if missing
       clinicRef.value = { ...fetchedClinic, services: fetchedClinic.services || [] }
     }
   } catch (err) {
     console.error('Error fetching clinic data:', err)
+  } finally {
+    pageLoading.value = false
   }
 
+  // Real-time listener for queue counts and wait times per service
   queuesUnsubscribe = subscribeToClinicQueues(clinicId.value, (queues) => {
     const waits = {}
+    const counts = {}
     queues.forEach((q) => {
       const duration = q.avgDuration || 15
-      waits[q.serviceId] = (q.activeCount || 0) * duration
+      const count = q.activeCount || 0
+      waits[q.serviceId] = count * duration
+      counts[q.serviceId] = count
     })
     waitByService.value = waits
+    queueCountByService.value = counts
   })
 })
 
@@ -102,6 +138,8 @@ function serviceName(id) {
 }
 
 const formattedHours = computed(() => {
+  // If clinic manually opened, show that instead of schedule
+  if (clinic.value?.isOpen) return 'Currently Open'
   if (!clinic.value?.operatingHours) return 'N/A'
   const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
   const range = clinic.value.operatingHours[day]
@@ -109,27 +147,52 @@ const formattedHours = computed(() => {
 })
 
 const isOpen = computed(() => {
+  // Manual override from Firestore takes precedence over time-based schedule
+  if (clinic.value?.isOpen !== undefined) return clinic.value.isOpen
+
   const hrs = clinic.value?.operatingHours
   if (!hrs) return false
-
   const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
   const today = hrs[day]
   if (!today?.open) return false
-
-  const toMinutes = (t) => {
+  const toMin = (t) => {
     const [h, m] = (t || '00:00').split(':').map(Number)
     return h * 60 + (m || 0)
   }
-
   const now = new Date()
-  const current = now.getHours() * 60 + now.getMinutes()
-  return current >= toMinutes(today.start) && current < toMinutes(today.end)
+  const cur = now.getHours() * 60 + now.getMinutes()
+  return cur >= toMin(today.start) && cur < toMin(today.end)
 })
 
-function joinQueue() {
-  if (!clinic.value || !isOpen.value) return
-  alert(`You joined queue for ${clinic.value.clinicName}.`)
-  router.push('/clinics')
+async function handleJoinQueue() {
+  if (!clinic.value || !isOpen.value || !selectedServiceId.value) return
+
+  // If not logged in as a patient, redirect to login
+  if (!authStore.isPatient || !authStore.patientId) {
+    router.push('/login')
+    return
+  }
+
+  joining.value = true
+  joinError.value = ''
+
+  try {
+    await queueStore.joinQueue({
+      patientId: authStore.patientId,
+      patientName: authStore.patient?.fullName || 'Patient',
+      clinicId: clinic.value.id,
+      clinicName: clinic.value.clinicName,
+      serviceId: selectedServiceId.value,
+      serviceName: serviceName(selectedServiceId.value),
+    })
+    // Redirect to patient dashboard to see live ticket
+    router.push('/patient/dashboard')
+  } catch (err) {
+    console.error('Failed to join queue:', err)
+    joinError.value = 'Failed to join the queue. Please try again.'
+  } finally {
+    joining.value = false
+  }
 }
 </script>
 
@@ -139,6 +202,7 @@ function joinQueue() {
   margin: 0 auto;
   padding: 1rem;
 }
+
 .back-btn {
   display: inline-block;
   margin-bottom: 1rem;
@@ -146,6 +210,7 @@ function joinQueue() {
   font-weight: 700;
   text-decoration: none;
 }
+
 .card {
   background: white;
   border-radius: 1rem;
@@ -154,77 +219,136 @@ function joinQueue() {
   padding: 1.2rem;
   margin-bottom: 1rem;
 }
+
 .clinic-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
+
 .clinic-header h1 {
   margin: 0;
   font-size: 2rem;
   color: #1d4ed8;
 }
+
 .meta {
   color: #64748b;
   margin: 0.3rem 0;
 }
+
 .services-section h2 {
   margin: 0 0 0.7rem;
   color: #1e3a8a;
 }
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
 .service-item {
-  padding: 0.8rem 1rem;
+  padding: 0.85rem 1rem;
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-radius: 0.85rem;
-  border: 1px solid #dbeafe;
+  border: 2px solid #dbeafe;
   background: #eef6ff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
-.service-item strong {
+
+.service-item:hover {
+  border-color: #93c5fd;
+}
+
+.service-item.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.service-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.service-info strong {
   color: #1d4ed8;
 }
+
 .service-time {
-  margin-left: 0.5rem;
+  font-size: 0.82rem;
   color: #475569;
 }
+
+.selected-tick {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #16a34a;
+}
+
 .status {
   font-weight: 700;
   color: #2563eb;
 }
+
 .no-services {
   color: #475569;
   margin: 0;
 }
+
 .queue-cta {
   text-align: center;
-  margin-top: 0.5rem;
 }
+
 .status-note {
   margin: 0 0 0.75rem;
   color: #b45309;
-  background-color: #fffbeb;
+  background: #fffbeb;
   padding: 0.75rem;
   border-radius: 0.75rem;
 }
+
+.hint-note {
+  margin: 0 0 0.75rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+
+.selected-note {
+  margin: 0 0 0.75rem;
+  color: #1e3a8a;
+  font-size: 0.95rem;
+}
+
 .btn {
+  width: 100%;
   border: 0;
   border-radius: 0.75rem;
-  padding: 0.8rem 1.2rem;
+  padding: 0.9rem 1.2rem;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
+
 .btn-primary {
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: white;
 }
+
 .btn-primary:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
+
 .empty-state {
   text-align: center;
 }

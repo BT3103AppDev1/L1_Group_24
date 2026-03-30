@@ -3,8 +3,21 @@
         <AppSpinner v-if="loading" />
 
         <template v-else>
-            <!-- Service Tabs -->
-            <ServiceTab :services="services" :active-id="activeServiceId" @select="selectService" />
+            <!-- Clinic Status Toggle + Service Tabs row -->
+            <div class="dashboard-top-row">
+                <ServiceTab :services="services" :active-id="activeServiceId" @select="selectService" />
+
+                <AppCard class="status-card">
+                    <span class="status-label">Clinic Status:</span>
+                    <AppBadge :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
+                        {{ authStore.clinic?.isOpen ? 'OPEN' : 'CLOSED' }}
+                    </AppBadge>
+                    <AppButton v-if="!authStore.clinic?.isOpen" variant="primary" size="sm" :disabled="togglingStatus"
+                        @click="toggleClinicStatus(true)">Open Clinic</AppButton>
+                    <AppButton v-else variant="danger" size="sm" :disabled="togglingStatus"
+                        @click="toggleClinicStatus(false)">Close Clinic</AppButton>
+                </AppCard>
+            </div>
 
             <!-- Stats -->
             <QueueSummaryCard :waiting="stats.waiting" :serving="stats.serving" :completed="stats.completed" />
@@ -80,9 +93,11 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AppModal from '@/components/base/AppModal.vue'
+import AppBadge from '@/components/base/AppBadge.vue'
 import ServiceTab from '@/components/clinic/ServiceTab.vue'
 import QueueSummaryCard from '@/components/clinic/QueueSummaryCard.vue'
 import PatientRow from '@/components/clinic/PatientRow.vue'
+import { updateClinic } from '@/firebase/firestore'
 
 const router = useRouter()
 const clinicStore = useClinicStore()
@@ -94,6 +109,7 @@ const loadingTickets = ref(false)
 const services = ref([])
 const activeServiceId = ref('')
 const detailTicket = ref(null)
+const togglingStatus = ref(false)
 
 const tickets = computed(() => queueStore.clinicTickets)
 
@@ -121,6 +137,21 @@ function refreshQueue() {
 
 function openDetail(ticket) {
     detailTicket.value = ticket
+}
+
+async function toggleClinicStatus(open) {
+    if (!authStore.clinicId) return
+    togglingStatus.value = true
+    try {
+        await updateClinic(authStore.clinicId, { isOpen: open })
+        // Optimistically update local state so button flips immediately
+        if (authStore.clinic) authStore.clinic.isOpen = open
+    } catch (e) {
+        console.error('Failed to toggle clinic status:', e)
+        alert('Failed to update clinic status. Please try again.')
+    } finally {
+        togglingStatus.value = false
+    }
 }
 
 async function updateStatus({ ticketId, status }) {
@@ -151,10 +182,10 @@ onMounted(async () => {
     // wait for Firebase auth to finish if it hasn't yet
     if (!authStore.initialized) {
         await new Promise(resolve => {
-        const stop = watch(
-            () => authStore.initialized,
-            (val) => { if (val) { stop(); resolve() } }
-        )
+            const stop = watch(
+                () => authStore.initialized,
+                (val) => { if (val) { stop(); resolve() } }
+            )
         })
     }
 
@@ -167,7 +198,7 @@ onMounted(async () => {
     services.value = await clinicStore.fetchClinicServices(authStore.clinicId)
 
     loading.value = false
-    
+
     if (services.value.length) selectService(services.value[0].id)
 })
 
@@ -177,6 +208,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.dashboard-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+
+.status-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    flex-shrink: 0;
+}
+
+.status-label {
+    font-weight: 600;
+    color: #4b5563;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
 .queue-table-card {
     padding: 1.25rem;
 }
