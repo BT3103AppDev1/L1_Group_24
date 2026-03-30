@@ -252,6 +252,42 @@ export async function seedServices() {
 // ---------------------------------------------------------------------------
 
 /**
+ * Resets all queues and active tickets for a clinic (used when opening/closing clinic).
+ * @param {string} clinicId
+ */
+export async function resetClinicQueues(clinicId) {
+    const batch = writeBatch(db)
+
+    // 1. Reset all queue sub-documents
+    const queuesSnap = await getDocs(collection(db, 'clinics', clinicId, 'queues'))
+    queuesSnap.forEach(d => {
+        batch.update(d.ref, {
+            activeCount: 0,
+            ticketCounter: 0
+        })
+    })
+
+    // 2. Mark all active tickets as cancelled
+    const ticketsQ = query(
+        collection(db, 'queueTickets'),
+        where('clinicId', '==', clinicId)
+    )
+    const ticketsSnap = await getDocs(ticketsQ)
+
+    ticketsSnap.forEach(d => {
+        const data = d.data()
+        if (data.status === 'waiting' || data.status === 'serving') {
+            batch.update(d.ref, {
+                status: 'cancelled',
+                updatedAt: now()
+            })
+        }
+    })
+
+    await batch.commit()
+}
+
+/**
  * Joins a patient to a clinic queue by creating a ticket
  * @param {{ patientId: string, clinicId: string, serviceId: string,
  *           serviceName: string, clinicName: string }} queueData
