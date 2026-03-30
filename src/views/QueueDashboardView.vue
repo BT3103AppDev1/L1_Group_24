@@ -3,9 +3,20 @@
         <AppSpinner v-if="loading" />
 
         <template v-else>
-            <!-- Clinic Status Toggle + Service Tabs row -->
+            <!-- Clinic Status Toggle + Service Dropdown row -->
             <div class="dashboard-top-row">
-                <ServiceTab :services="services" :active-id="activeServiceId" @select="selectService" />
+                <div class="custom-dropdown">
+                    <button class="dropdown-trigger" @click="dropdownOpen = !dropdownOpen">
+                        {{ activeServiceName || 'Select Service' }}
+                        <span class="chevron" :class="{ open: dropdownOpen }">▼</span>
+                    </button>
+                    <div v-show="dropdownOpen" class="dropdown-menu">
+                        <div v-for="s in services" :key="s.id" class="dropdown-item"
+                            :class="{ active: s.id === activeServiceId }" @click="selectServiceLocal(s.id)">
+                            {{ s.serviceName }}
+                        </div>
+                    </div>
+                </div>
 
                 <AppCard class="status-card">
                     <span class="status-label">Clinic Status:</span>
@@ -94,7 +105,6 @@ import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AppModal from '@/components/base/AppModal.vue'
 import AppBadge from '@/components/base/AppBadge.vue'
-import ServiceTab from '@/components/clinic/ServiceTab.vue'
 import QueueSummaryCard from '@/components/clinic/QueueSummaryCard.vue'
 import PatientRow from '@/components/clinic/PatientRow.vue'
 import { updateClinic } from '@/firebase/firestore'
@@ -110,11 +120,12 @@ const services = ref([])
 const activeServiceId = ref('')
 const detailTicket = ref(null)
 const togglingStatus = ref(false)
+const dropdownOpen = ref(false)
 
 const tickets = computed(() => queueStore.clinicTickets)
 
 const activeServiceName = computed(() => {
-    return services.value.find(s => s.id === activeServiceId.value)?.name || ''
+    return services.value.find(s => s.id === activeServiceId.value)?.serviceName || ''
 })
 
 const stats = computed(() => ({
@@ -129,6 +140,11 @@ function selectService(id) {
     queueStore.subscribeToClinicService(authStore.clinicId, id, () => {
         loadingTickets.value = false
     })
+}
+
+function selectServiceLocal(id) {
+    selectService(id)
+    dropdownOpen.value = false
 }
 
 function refreshQueue() {
@@ -230,6 +246,82 @@ onUnmounted(() => {
     color: #4b5563;
     font-size: 0.9rem;
     white-space: nowrap;
+}
+
+.custom-dropdown {
+    position: relative;
+    min-width: 260px;
+    z-index: 50;
+}
+
+.dropdown-trigger {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border: 2px solid #e5e7eb;
+    padding: 0.8rem 1.25rem;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #33371f;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s;
+}
+
+.dropdown-trigger:hover {
+    border-color: #0c0c0c;
+    /* Softer hover border color */
+    background-color: #f8fafc;
+}
+
+.chevron {
+    font-size: 0.75rem;
+    color: #6b7280;
+    /* Gray chevron */
+    transition: transform 0.2s;
+}
+
+.chevron.open {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 0.5rem;
+    box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dropdown-item {
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111404;
+    /* Changed to dark black/gray text */
+    cursor: pointer;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background: #f1f5f9;
+    color: #000000;
+}
+
+.dropdown-item.active {
+    background: #eff6ff;
+    color: #1d4ed8;
 }
 
 .queue-table-card {
