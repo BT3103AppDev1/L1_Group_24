@@ -107,7 +107,7 @@ import AppModal from '@/components/base/AppModal.vue'
 import AppBadge from '@/components/base/AppBadge.vue'
 import QueueSummaryCard from '@/components/clinic/QueueSummaryCard.vue'
 import PatientRow from '@/components/clinic/PatientRow.vue'
-import { updateClinic } from '@/firebase/firestore'
+import { updateClinic, resetClinicQueues } from '@/firebase/firestore'
 
 const router = useRouter()
 const clinicStore = useClinicStore()
@@ -160,6 +160,10 @@ async function toggleClinicStatus(open) {
     togglingStatus.value = true
     try {
         await updateClinic(authStore.clinicId, { isOpen: open })
+
+        // Reset all queue counters to 0 and remove existing patients
+        await resetClinicQueues(authStore.clinicId)
+
         // Optimistically update local state so button flips immediately
         if (authStore.clinic) authStore.clinic.isOpen = open
     } catch (e) {
