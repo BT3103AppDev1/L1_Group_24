@@ -1,5 +1,6 @@
 @import './base.css';
 @import './components.css';
+@import './clinic.css';
 
 :root {
   --surface-glass: rgba(255, 255, 255, 0.72);

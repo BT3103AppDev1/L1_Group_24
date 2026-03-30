@@ -159,7 +159,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // sign in an existing clinic 
+    // sign in an existing clinic
     async loginClinic({ email, password }) {
       this.loading = true
       try {
