@@ -14,11 +14,6 @@ import {
   getClinic,
 } from '@/firebase/firestore.js'
 
-// converts clinic contact numbers to emails because Firebase Auth only supports email/password natively
-function phoneToEmail(contactNumber) {
-  return `${contactNumber}@clinicq.app`
-}
-
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
@@ -33,8 +28,8 @@ export const useAuthStore = defineStore('auth', {
     isLoggedIn: (state) => !!state.user,
     isPatient: (state) => state.role === 'patient',
     isClinic: (state) => state.role === 'clinic',
-    patientId: (state) => state.patient?.uid || null,
-    clinicId: (state) => state.clinic?.uid || null
+    patientId: (state) => state.patient?.id || null,
+    clinicId: (state) => state.clinic?.id || null
   },
 
   actions: {
@@ -130,15 +125,14 @@ export const useAuthStore = defineStore('auth', {
       district,
       postalCode,
       contactNumber,
+      email,
       operatingHours,
       services,
       password
     }) {
       this.loading = true
       try {
-        const derivedEmail = phoneToEmail(contactNumber)
-
-        const credential = await registerWithEmail(derivedEmail, password)
+        const credential = await registerWithEmail(email, password)
         const uid = credential.user.uid
 
         await createClinic(uid, {
@@ -146,9 +140,9 @@ export const useAuthStore = defineStore('auth', {
           district,
           postalCode,
           contactNumber,
+          email,
           operatingHours: operatingHours || {},
           services: services || [],
-          email: derivedEmail
         })
 
         const clinic = await getClinic(uid)
@@ -166,12 +160,10 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // sign in an existing clinic 
-    async loginClinic({ contactNumber, password }) {
+    async loginClinic({ email, password }) {
       this.loading = true
       try {
-        // Reconstruct the same derived email used at registration
-        const derivedEmail = phoneToEmail(contactNumber)
-        const credential = await loginWithEmail(derivedEmail, password)
+        const credential = await loginWithEmail(email, password)
         const uid = credential.user.uid
 
         const clinic = await getClinic(uid)

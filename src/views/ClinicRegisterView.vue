@@ -9,6 +9,8 @@
                     :error="errors.name" required />
                 <AppInput v-model="form.contactNumber" label="Contact Number" placeholder="e.g. 62345678"
                     :error="errors.contactNumber" required />
+                <AppInput v-model="form.email" label="Email Address" type="email" placeholder="clinic@email.com"
+                    :error="errors.email" required />
                 <AppInput v-model="form.address" label="Address" placeholder="e.g. 123 Orchard Rd"
                     :error="errors.address" required />
                 <AppInput v-model="form.postalCode" label="Postal Code" placeholder="e.g. 123456"
@@ -87,13 +89,13 @@ const success = ref(false)
 const districtOptions = DISTRICTS.map(d => ({ value: d, label: d }))
 
 const form = reactive({
-    name: '', contactNumber: '', address: '',
+    name: '', contactNumber: '', email: '', address: '',
     postalCode: '', district: '', services: [],
     password: '', confirmPassword: '',
 })
 
 const errors = reactive({
-    name: '', contactNumber: '', address: '',
+    name: '', contactNumber: '', email: '', address: '',
     postalCode: '', district: '', services: '',
     password: '', confirmPassword: '',
 })
@@ -111,6 +113,8 @@ function validate() {
     if (!form.name.trim()) { errors.name = 'Clinic name is required'; ok = false }
     if (!form.contactNumber.trim()) { errors.contactNumber = 'Contact number is required'; ok = false }
     else if (!/^[36]\d{7}$/.test(form.contactNumber)) { errors.contactNumber = 'Enter a valid 8-digit Singapore phone number'; ok = false }
+    if (!form.email.trim()) { errors.email = 'Email is required'; ok = false }
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { errors.email = 'Enter a valid email'; ok = false }
     if (!form.address.trim()) { errors.address = 'Address is required'; ok = false }
     if (!form.postalCode.trim()) { errors.postalCode = 'Postal code is required'; ok = false }
     else if (!/^\d{6}$/.test(form.postalCode)) { errors.postalCode = 'Postal code must be 6 digits'; ok = false }
@@ -134,6 +138,7 @@ async function submit() {
         await authStore.registerClinic({
             clinicName: form.name.trim(),
             contactNumber: form.contactNumber.trim(),
+            email: form.email.trim().toLowerCase(),
             address: form.address.trim(),
             postalCode: form.postalCode.trim(),
             district: form.district,
@@ -144,7 +149,7 @@ async function submit() {
         setTimeout(() => router.push('/clinic/setup'), 1500)
     } catch (e) {
         serverError.value = e.code === 'auth/email-already-in-use'
-            ? 'This contact number is already registered. Please log in.'
+            ? 'This email address is already registered.'
             : (e.message || 'Registration failed. Please try again.')
     } finally {
         loading.value = false

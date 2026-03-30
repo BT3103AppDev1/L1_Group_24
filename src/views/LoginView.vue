@@ -30,8 +30,8 @@
       <h2 class="form-heading">Clinic Login</h2>
       <p class="form-sub">Log in with your clinic email and password.</p>
       <form @submit.prevent="submitClinicLogin" class="auth-form" novalidate>
-        <AppInput v-model="cl.contactNumber" label="Contact Number" type="tel" placeholder="e.g. 62345678"
-          :error="cl.errors.contactNumber" required />
+        <AppInput v-model="cl.email" label="Email Address" type="email" placeholder="clinic@email.com"
+          :error="cl.errors.email" required />
         <AppInputPassword v-model="cl.password" label="Password" :error="cl.errors.password" required />
         <AlertBanner v-if="cl.serverError" type="error" :message="cl.serverError" dismissible
           @dismiss="cl.serverError = ''" />
@@ -83,22 +83,21 @@ async function submitPatientLogin() {
 
 // ── Clinic Login ──────────────────────────────────────────
 const cl = reactive({
-  contactNumber: '', password: '', loading: false, serverError: '',
-  errors: { contactNumber: '', password: '' },
+  email: '', password: '', loading: false, serverError: '',
+  errors: { email: '', password: '' },
 })
 
 async function submitClinicLogin() {
-  cl.errors.contactNumber = cl.errors.password = ''
+  cl.errors.email = cl.errors.password = ''
 
-  if (!cl.contactNumber.trim()) { cl.errors.contactNumber = 'Contact number is required'; return }
-  else if (!/^[36]\d{7}$/.test(cl.contactNumber)) { cl.errors.contactNumber = 'Enter a valid 8-digit Singapore phone number'; return }
+  if (!cl.email.trim()) { cl.errors.email = 'Email is required'; return }
   if (!cl.password.trim()) { cl.errors.password = 'Password is required'; return }
   
   cl.loading = true
   cl.serverError = ''
 
   try {
-    await authStore.loginClinic({ contactNumber: cl.contactNumber.trim().toLowerCase(), password: cl.password })
+    await authStore.loginClinic({ email: cl.email.trim().toLowerCase(), password: cl.password })
     router.push('/clinic/dashboard').catch(err => {
       console.error('Router navigation failed:', err)
       cl.serverError = 'Navigation failed: ' + err.message
