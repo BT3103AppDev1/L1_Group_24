@@ -1,3 +1,5 @@
+// Firebase authentication functions
+
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -10,7 +12,7 @@ import { auth } from './config.js'
 
 
 /**
- * Registers a new Firebase user with email and password.
+ * Registers a new user with email and password
  * @param {string} email
  * @param {string} password
  * @returns {Promise<UserCredential>}
@@ -20,7 +22,7 @@ export async function registerWithEmail(email, password) {
 }
 
 /**
- * Signs in an existing Firebase user with email and password.
+ * Signs in an existing user with email and password
  * @param {string} email
  * @param {string} password
  * @returns {Promise<UserCredential>}
@@ -30,7 +32,7 @@ export async function loginWithEmail(email, password) {
 }
 
 /**
- * Signs out the currently authenticated user.
+ * Signs out the currently authenticated user
  * @returns {Promise<void>}
  */
 export async function logout() {
@@ -38,7 +40,7 @@ export async function logout() {
 }
 
 /**
- * Sends a password reset email to the given address.
+ * Sends a password reset email to the given address
  * @param {string} email
  * @returns {Promise<void>}
  */
@@ -47,9 +49,9 @@ export async function sendPasswordReset(email) {
 }
 
 /**
- * Confirms a password reset using the OOB code from the reset email link.
- * @param {string} oobCode / The action code from the password reset email link
- * @param {string} newPassword / The new password to set
+ * Confirms a password reset using the OOB code from the reset email link
+ * @param {string} oobCode // The action code from the password reset email link
+ * @param {string} newPassword // The new password to set
  * @returns {Promise<void>}
  */
 export async function confirmPasswordReset(oobCode, newPassword) {
@@ -57,17 +59,17 @@ export async function confirmPasswordReset(oobCode, newPassword) {
 }
 
 /**
- * Returns the currently authenticated Firebase user, or null if not signed in.
- * @returns {User|null}
+ * Returns the currently authenticated user, or null if not signed in
+ * @returns {User | null}
  */
 export function getCurrentUser() {
     return auth.currentUser
 }
 
 /**
- * Watches whether the user is logged in or logged out.
- * @param {function} callback / Runs whenever the login status changes
- * @returns {function} / A function to stop watching for login status changes
+ * Watches whether the user is logged in or logged out
+ * @param {function} callback // Runs whenever login status changes
+ * @returns {function} // A function to stop watching when login status changes
  */
 export function onAuthChange(callback) {
     return onAuthStateChanged(auth, callback)

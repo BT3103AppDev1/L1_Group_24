@@ -89,9 +89,13 @@ const cl = reactive({
 
 async function submitClinicLogin() {
   cl.errors.email = cl.errors.password = ''
+
   if (!cl.email.trim()) { cl.errors.email = 'Email is required'; return }
   if (!cl.password.trim()) { cl.errors.password = 'Password is required'; return }
-  cl.loading = true; cl.serverError = ''
+  
+  cl.loading = true
+  cl.serverError = ''
+
   try {
     await authStore.loginClinic({ email: cl.email.trim().toLowerCase(), password: cl.password })
     router.push('/clinic/dashboard').catch(err => {

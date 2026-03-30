@@ -147,8 +147,27 @@ function formatTime(ts) {
 
 onMounted(async () => {
     loading.value = true
+
+    // wait for Firebase auth to finish if it hasn't yet
+    if (!authStore.initialized) {
+        await new Promise(resolve => {
+        const stop = watch(
+            () => authStore.initialized,
+            (val) => { if (val) { stop(); resolve() } }
+        )
+        })
+    }
+
+    // guard: if no clinic is logged in, redirect away
+    if (!authStore.clinicId) {
+        router.push('/login')
+        return
+    }
+
     services.value = await clinicStore.fetchClinicServices(authStore.clinicId)
+
     loading.value = false
+    
     if (services.value.length) selectService(services.value[0].id)
 })
 
