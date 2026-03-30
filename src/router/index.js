@@ -53,12 +53,12 @@ const router = createRouter({
       name: 'PatientDashboard',
       component: () => import('@/views/DashboardView.vue'),
     },
-    // {
-    //   path: '/patient/profile',
-    //   name: 'PatientProfile',
-    //   component: () => import('@/views/patient/profile/ProfileView.vue'),
-    //   meta: { requiresAuth: true, role: 'patient' },
-    // },
+    {
+      path: '/patient/profile',
+      name: 'PatientProfile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { requiresAuth: true, role: 'patient' },
+    },
     // {
     //   path: '/patient/queue',
     //   name: 'QueueTracker',
