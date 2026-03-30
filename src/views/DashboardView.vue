@@ -45,10 +45,7 @@
       <h3 class="section-title">Recent Consultations</h3>
       <AppSpinner v-if="loadingRecords" />
       <template v-else-if="recentRecords.length">
-        <AppCard v-for="rec in recentRecords" :key="rec.id">
-          <p><strong>{{ rec.consultationDate }}</strong></p>
-          <p>{{ rec.clinicName }} — {{ rec.serviceName }}</p>
-        </AppCard>
+        <RecordCard v-for="rec in recentRecords" :key="rec.id" :record="rec" />
       </template>
       <AppEmptyState v-else icon="📋" title="No records yet"
         description="Your consultation history will appear here." />
@@ -57,17 +54,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQueueStore } from '@/stores/useQueueStore.js'
+import { useAuthStore } from '@/stores/useAuthStore.js'
+import { getPatientConsultations } from '@/firebase/firestore.js'
 import AppCard from '@/components/base/AppCard.vue'
 import AppButton from '@/components/base/AppButton.vue'
 import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AlertBanner from '@/components/shared/AlertBanner.vue'
+import RecordCard from '@/components/patient/RecordCard.vue'
 
 const router = useRouter()
 const queueStore = useQueueStore()
+const authStore = useAuthStore()
 
 const loadingRecords = ref(false)  // spinner toggle for records section
 const recentRecords = ref([])     // list of recent consultation records
@@ -99,12 +100,39 @@ function goToRecords() {
   router.push('/patient/records')
 }
 
-// TODO: replace mock data with getPatientConsultations() when firestore is ready
-onMounted(() => {
-  recentRecords.value = [
-    { id: '1', consultationDate: '20 March 2026', clinicName: 'Sunrise Medical Clinic', serviceName: 'General Consultation' },
-    { id: '2', consultationDate: '10 March 2026', clinicName: 'HealthFirst Clinic', serviceName: 'Follow-up' },
-  ]
+async function loadRecords() {
+  if (!authStore.patientId) return
+  loadingRecords.value = true
+  try {
+    const records = await getPatientConsultations(authStore.patientId)
+    recentRecords.value = records
+  } catch (e) {
+    console.error('Failed to load records:', e)
+  } finally {
+    loadingRecords.value = false
+  }
+}
+
+onMounted(async () => {
+  if (!authStore.initialized) {
+    await new Promise(resolve => {
+      const unwatch = watch(() => authStore.initialized, (init) => {
+        if (init) {
+          unwatch()
+          resolve()
+        }
+      })
+    })
+  }
+
+  loadRecords()
+
+  // Reload records dynamically if active ticket status changes to 'completed'
+  watch(() => queueStore.activeTicket?.status, (newStatus) => {
+    if (newStatus === 'completed') {
+      loadRecords()
+    }
+  })
 })
 </script>
 

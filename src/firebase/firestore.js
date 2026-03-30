@@ -441,3 +441,32 @@ export async function getPatientActiveTicket(patientId) {
     const first = snap.docs[0]
     return { id: first.id, ...first.data() }
 }
+
+/**
+ * Fetches all completed consultation tickets for a specific patient.
+ * @param {string} patientId
+ * @returns {Promise<object[]>}
+ */
+export async function getPatientConsultations(patientId) {
+    const q = query(
+        collection(db, 'queueTickets'),
+        where('patientId', '==', patientId),
+        where('status', '==', 'completed')
+    )
+    const snap = await getDocs(q)
+    const records = snap.docs.map(d => {
+        const data = d.data()
+        return {
+            id: d.id,
+            consultationDate: data.updatedAt, // Map for RecordCard
+            ...data
+        }
+    })
+    
+    // Sort descending by completion time (newest first)
+    return records.sort((a, b) => {
+        const aTime = a.updatedAt?.toMillis?.() ?? 0
+        const bTime = b.updatedAt?.toMillis?.() ?? 0
+        return bTime - aTime
+    })
+}
