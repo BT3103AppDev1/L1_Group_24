@@ -3,8 +3,27 @@
         <AppSpinner v-if="loading" />
 
         <template v-else>
-            <!-- Service Tabs -->
-            <ServiceTab :services="services" :active-id="activeServiceId" @select="selectService" />
+            <div class="dashboard-top-row">
+                <ServiceTab :services="services" :active-id="activeServiceId" @select="selectService" />
+
+                <!-- Clinic Status Toggle -->
+                <AppCard class="status-card">
+                    <span class="status-label">Clinic Status:</span>
+                    <AppBadge :variant="authStore.clinic?.isOpen ? 'open' : 'closed'" class="status-badge">
+                        {{ authStore.clinic?.isOpen ? 'OPEN' : 'CLOSED' }}
+                    </AppBadge>
+                    <div class="status-actions">
+                        <AppButton v-if="!authStore.clinic?.isOpen" variant="primary" size="sm"
+                            @click="toggleClinicStatus(true)" :disabled="togglingStatus">
+                            Open Clinic
+                        </AppButton>
+                        <AppButton v-else variant="danger" size="sm" @click="toggleClinicStatus(false)"
+                            :disabled="togglingStatus">
+                            Close Clinic
+                        </AppButton>
+                    </div>
+                </AppCard>
+            </div>
 
             <!-- Stats -->
             <QueueSummaryCard :waiting="stats.waiting" :serving="stats.serving" :completed="stats.completed" />
@@ -80,9 +99,11 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AppModal from '@/components/base/AppModal.vue'
+import AppBadge from '@/components/base/AppBadge.vue'
 import ServiceTab from '@/components/clinic/ServiceTab.vue'
 import QueueSummaryCard from '@/components/clinic/QueueSummaryCard.vue'
 import PatientRow from '@/components/clinic/PatientRow.vue'
+import { updateClinic } from '@/firebase/firestore'
 
 const router = useRouter()
 const clinicStore = useClinicStore()
@@ -94,6 +115,7 @@ const loadingTickets = ref(false)
 const services = ref([])
 const activeServiceId = ref('')
 const detailTicket = ref(null)
+const togglingStatus = ref(false)
 
 const tickets = computed(() => queueStore.clinicTickets)
 
@@ -123,6 +145,23 @@ function openDetail(ticket) {
     detailTicket.value = ticket
 }
 
+async function toggleClinicStatus(open) {
+    if (!authStore.clinicId) return
+    togglingStatus.value = true
+    try {
+        await updateClinic(authStore.clinicId, { isOpen: open })
+        // Update local auth store so UI reflects it immediately
+        if (authStore.clinic) {
+            authStore.clinic.isOpen = open
+        }
+    } catch (e) {
+        console.error('Failed to toggle clinic status:', e)
+        alert('Failed to update clinic status.')
+    } finally {
+        togglingStatus.value = false
+    }
+}
+
 async function updateStatus({ ticketId, status }) {
     await queueStore.updateStatus(ticketId, status)
 }
@@ -147,8 +186,27 @@ function formatTime(ts) {
 
 onMounted(async () => {
     loading.value = true
+
+    // wait for Firebase auth to finish if it hasn't yet
+    if (!authStore.initialized) {
+        await new Promise(resolve => {
+            const stop = watch(
+                () => authStore.initialized,
+                (val) => { if (val) { stop(); resolve() } }
+            )
+        })
+    }
+
+    // guard: if no clinic is logged in, redirect away
+    if (!authStore.clinicId) {
+        router.push('/login')
+        return
+    }
+
     services.value = await clinicStore.fetchClinicServices(authStore.clinicId)
+
     loading.value = false
+
     if (services.value.length) selectService(services.value[0].id)
 })
 
@@ -158,6 +216,33 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.dashboard-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.status-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 0;
+}
+
+.status-label {
+    font-weight: 600;
+    color: #4b5563;
+    font-size: 0.95rem;
+}
+
+.status-badge {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.65rem;
+}
+
 .queue-table-card {
     padding: 1.25rem;
 }
