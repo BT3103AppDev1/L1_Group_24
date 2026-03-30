@@ -260,22 +260,15 @@ export async function seedServices() {
 export async function joinQueue(queueData) {
     const queueDocRef = doc(db, 'clinics', queueData.clinicId, 'queues', queueData.serviceId)
 
-    // Read current ticket counter to generate ticket number
+    // Read queue sub-doc to derive position from activeCount (avoids compound query / composite index requirement)
     const queueSnap = await getDoc(queueDocRef)
-    const currentCounter = queueSnap.exists() ? (queueSnap.data().ticketCounter || 0) : 0
-    const newCounter = currentCounter + 1
-    const ticketNumber = `Q${String(newCounter).padStart(3, '0')}`
-
-    // Count current waiting tickets to determine position
-    const waitingQuery = query(
-        collection(db, 'queueTickets'),
-        where('clinicId', '==', queueData.clinicId),
-        where('serviceId', '==', queueData.serviceId),
-        where('status', '==', 'waiting')
-    )
-    const waitingSnap = await getDocs(waitingQuery)
-    const position = waitingSnap.size + 1
-    const estimatedWaitTime = position * 10
+    const queueInfo = queueSnap.exists() ? queueSnap.data() : {}
+    const currentCounter    = queueInfo.ticketCounter || 0
+    const currentActive     = queueInfo.activeCount   || 0
+    const newCounter        = currentCounter + 1
+    const ticketNumber      = `Q${String(newCounter).padStart(3, '0')}`
+    const position          = currentActive + 1
+    const estimatedWaitTime = position * (queueInfo.avgDuration || 15)
 
     const ticketRef = await addDoc(collection(db, 'queueTickets'), {
         ...queueData,
@@ -287,7 +280,13 @@ export async function joinQueue(queueData) {
         updatedAt: now()
     })
 
-    await updateDoc(queueDocRef, { activeCount: increment(1), ticketCounter: increment(1) })
+    // setDoc with merge safely creates the sub-doc if it doesn't exist yet
+    await setDoc(queueDocRef, {
+        serviceId:     queueData.serviceId,
+        serviceName:   queueData.serviceName,
+        activeCount:   increment(1),
+        ticketCounter: increment(1),
+    }, { merge: true })
 
     return ticketRef.id
 }
@@ -367,16 +366,26 @@ export function subscribeToTicket(ticketId, callback) {
  * @returns {function} // Unsubscribe function
  */
 export function subscribeToClinicServiceTickets(clinicId, serviceId, callback) {
+    // Only equality filters — no orderBy — to avoid requiring a Firestore composite index.
+    // Filtering by status and sorting by joinedAt is done client-side.
     const q = query(
         collection(db, 'queueTickets'),
         where('clinicId', '==', clinicId),
-        where('serviceId', '==', serviceId),
-        where('status', 'in', ['waiting', 'serving']),
-        orderBy('joinedAt', 'asc')
+        where('serviceId', '==', serviceId)
     )
     return onSnapshot(q, (snap) => {
-        const tickets = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const tickets = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((t) => ['waiting', 'serving'].includes(t.status))
+            .sort((a, b) => {
+                const aTime = a.joinedAt?.toMillis?.() ?? 0
+                const bTime = b.joinedAt?.toMillis?.() ?? 0
+                return aTime - bTime
+            })
         callback(tickets)
+    }, (err) => {
+        console.error('[Firestore] subscribeToClinicServiceTickets error:', err)
+        callback([]) // unblock spinner even on error
     })
 }
 
