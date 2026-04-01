@@ -7,6 +7,7 @@
 import NavBar from '@/components/shared/NavBar.vue'
 import { computed, onMounted } from 'vue'
 // import { seedServices } from '@/firebase/firestore.js'
+import { runSeed } from './firebase/seed.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { useClinicStore } from '@/stores/useClinicStore.js'
 import { useRouter } from 'vue-router'
@@ -35,6 +36,9 @@ onMounted(async () => {
 
   // seed medical services to populate database -> only needs to be done once
   // await seedServices()
+
+  // seed patients and clinics to populate database -> only needs to be done once
+  // await runSeed()
 
   // pre-load services and clinic list (public data)
   clinicStore.fetchServices()
