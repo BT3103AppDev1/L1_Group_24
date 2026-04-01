@@ -123,6 +123,7 @@ export const useAuthStore = defineStore('auth', {
     async registerClinic({
       clinicName,
       district,
+      address,
       postalCode,
       contactNumber,
       email,
@@ -138,6 +139,7 @@ export const useAuthStore = defineStore('auth', {
         await createClinic(uid, {
           clinicName,
           district,
+          address,
           postalCode,
           contactNumber,
           email,
