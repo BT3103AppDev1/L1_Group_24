@@ -99,6 +99,13 @@ const router = createRouter({
       component: () => import('@/views/QueueDashboardView.vue'),
       meta: { requiresAuth: true, role: 'clinic' },
     },
+    // Clinic analytics view
+    {
+      path: '/clinic/analytics',
+      name: 'ClinicAnalytics',
+      component: () => import('@/views/ClinicAnalyticsView.vue'),
+      meta: { requiresAuth: true, role: 'clinic' },
+    },
     // {
     //   path: '/clinic/queue-list',
     //   name: 'QueueList',

@@ -27,6 +27,30 @@ function now() {
   return serverTimestamp()
 }
 
+// Normalises a timestamp to midnight so tickets can be grouped by calendar day
+function startOfDay(date) {
+  const normalized = new Date(date)
+  normalized.setHours(0, 0, 0, 0)
+  return normalized
+}
+
+// Creates a stable YYYY-MM-DD key for daily analytics buckets
+function formatDateKey(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Creates the human-readable date label shown on the analytics page
+function formatDateLabel(date) {
+  return new Intl.DateTimeFormat('en-SG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
 // ---------------------------------------------------------------------------
 // Patients
 // ---------------------------------------------------------------------------
@@ -423,6 +447,77 @@ export function subscribeToClinicServiceTickets(clinicId, serviceId, callback) {
         console.error('[Firestore] subscribeToClinicServiceTickets error:', err)
         callback([]) // unblock spinner even on error
     })
+}
+
+/**
+ * Real-time watcher for a clinic's daily queue join history over the last N days.
+ * Counts each ticket once based on its joinedAt date, regardless of later status changes.
+ * Also returns today's average estimated wait time across tickets joined today.
+ * @param {string} clinicId
+ * @param {function} callback
+ * @param {function} [onError]
+ * @param {number} [days]
+ * @returns {function}
+ */
+export function subscribeToClinicDailyQueueHistory(clinicId, callback, onError, days = 30) {
+  const q = query(collection(db, 'queueTickets'), where('clinicId', '==', clinicId))
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      // Build a fixed date window so the chart always renders the last N days
+      const dayCount = Math.max(days, 1)
+      const today = startOfDay(new Date())
+      const startDate = new Date(today)
+      startDate.setDate(today.getDate() - (dayCount - 1))
+
+      const totalsByDay = new Map()
+      let todayWaitTotal = 0
+      let todayWaitCount = 0
+
+      snap.docs.forEach((ticketDoc) => {
+        const ticket = ticketDoc.data()
+        const joinedAt = ticket.joinedAt?.toDate?.()
+        if (!(joinedAt instanceof Date) || Number.isNaN(joinedAt.getTime())) return
+
+        const joinedDay = startOfDay(joinedAt)
+        const isToday = joinedDay.getTime() === today.getTime()
+
+        if (isToday && typeof ticket.estimatedWaitTime === 'number') {
+          todayWaitTotal += ticket.estimatedWaitTime
+          todayWaitCount += 1
+        }
+
+        if (joinedDay < startDate || joinedDay > today) return
+
+        // Count every join once based on the day the patient entered the queue
+        const key = formatDateKey(joinedDay)
+        totalsByDay.set(key, (totalsByDay.get(key) || 0) + 1)
+      })
+
+      // Zero-fill missing dates so the chart line remains continuous
+      const history = Array.from({ length: dayCount }, (_, index) => {
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + index)
+        const dateKey = formatDateKey(currentDate)
+
+        return {
+          dateKey,
+          label: formatDateLabel(currentDate),
+          count: totalsByDay.get(dateKey) || 0,
+        }
+      })
+
+      callback({
+        history,
+        averageWaitToday: todayWaitCount ? todayWaitTotal / todayWaitCount : 0,
+      })
+    },
+    (err) => {
+      console.error('[Firestore] subscribeToClinicDailyQueueHistory error:', err)
+      if (onError) onError(err)
+    },
+  )
 }
 
 /**

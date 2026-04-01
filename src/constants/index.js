@@ -31,3 +31,17 @@ export const DISTRICTS = [
   'Woodlands',
   'Yishun'
 ]
+
+// ============================================================
+// Days of the Week
+// ============================================================
+// Shared labels used by the clinic profile opening-hours form
+export const DAYS = [
+  { value: 'mon', label: 'Monday' },
+  { value: 'tue', label: 'Tuesday' },
+  { value: 'wed', label: 'Wednesday' },
+  { value: 'thu', label: 'Thursday' },
+  { value: 'fri', label: 'Friday' },
+  { value: 'sat', label: 'Saturday' },
+  { value: 'sun', label: 'Sunday' }
+]
