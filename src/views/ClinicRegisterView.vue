@@ -19,8 +19,8 @@
                     required />
 
                 <!-- Services offered -->
-                <div class="field-group">
-                    <label class="field-label">Services Offered <span class="required">*</span></label>
+                <div class="form-group">
+                    <label class="form-label">Services Offered <span class="required">*</span></label>
                     <div v-if="clinicStore.loading" class="services-loading">Loading services…</div>
                     <div v-else class="services-grid">
                         <label
@@ -197,18 +197,6 @@ async function submit() {
 .success-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
-}
-
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-
-.field-label {
-  font-size: .875rem;
-  font-weight: 600;
-  color: #374151;
 }
 
 .required {
