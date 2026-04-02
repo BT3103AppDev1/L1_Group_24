@@ -74,7 +74,7 @@ export async function updatePatient(uid, data) {
  * Creates a clinic profile document
  * @param {string} uid
  * @param {{ clinicName: string, district: string, postalCode: string, contactNumber: string,
- *           operatingHours: object, services: string[], address: string }} data
+ *           operatingHours: object, services: string[], email: string, address: string }} data
  */
 export async function createClinic(uid, data) {
   await setDoc(doc(db, 'clinics', uid), {
