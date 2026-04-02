@@ -28,6 +28,8 @@
                 <template v-else-if="portal === 'clinic'">
                     <span class="welcome-text">{{ clinicName }}</span>
                     <RouterLink to="/clinic/dashboard" class="nav-link" @click="closeMenu">Queue Dashboard</RouterLink>
+                    <!-- Clinic-facing analytics page -->
+                    <RouterLink to="/clinic/analytics" class="nav-link" @click="closeMenu">Analytics</RouterLink>
                     <RouterLink to="/clinic/post-consult" class="nav-link" @click="closeMenu">Post-Consult</RouterLink>
                     <RouterLink to="/clinic/profile" class="nav-link" @click="closeMenu">Profile</RouterLink>
                     <button class="btn btn-outline nav-btn" type="button" @click="closeAndLogout">Logout</button>
