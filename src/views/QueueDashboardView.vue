@@ -93,7 +93,7 @@
 
                 <AppEmptyState
                     v-else
-                    icon="🎫"
+                    icon = ""
                     title="Queue is empty"
                     description="No tickets yet for this service."
                 />
