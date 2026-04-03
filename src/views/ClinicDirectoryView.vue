@@ -29,23 +29,30 @@
               {{ Number(clinic.distance || 0).toFixed(1) }} km
             </p>
           </div>
-          <AppBadge :variant="isClinicOpen(clinic) ? 'open' : 'closed'">{{
-            isClinicOpen(clinic) ? 'Open' : 'Closed'
-          }}</AppBadge>
+          <AppBadge :variant="isClinicOpen(clinic) ? 'open' : 'closed'">
+            {{ isClinicOpen(clinic) ? 'Open' : 'Closed' }}
+          </AppBadge>
         </div>
 
         <p class="clinic-address">{{ clinic.address }}</p>
 
         <div class="service-tags">
-          <span v-for="svcId in (clinic.services || []).slice(0, 3)" :key="svcId" class="svc-chip">{{ serviceName(svcId)
-          }}</span>
-          <span v-if="clinic.services && clinic.services.length > 3" class="svc-more">+{{ clinic.services.length - 3 }}
-            more</span>
+          <span
+            v-for="svcId in (clinic.services || []).slice(0, 3)"
+            :key="svcId"
+            class="svc-chip"
+          >
+            {{ serviceName(svcId) }}
+          </span>
+          <span v-if="clinic.services && clinic.services.length > 3" class="svc-more">
+            +{{ clinic.services.length - 3 }} more
+          </span>
         </div>
 
         <div class="clinic-bottom">
-          <span class="wait">Est. wait:
-            {{ clinic.averageWaitTime ? `~${clinic.averageWaitTime} min` : 'No wait' }}</span>
+          <span class="wait">
+            Est. wait: {{ clinic.averageWaitTime ? `~${clinic.averageWaitTime} min` : 'No wait' }}
+          </span>
           <button class="btn btn-primary" type="button" @click="viewDetail(clinic.id)">
             View details
           </button>
@@ -76,8 +83,6 @@ onMounted(async () => {
   try {
     servicesData.value = await getAllServices()
     clinicsUnsubscribe = subscribeToAllClinics((data) => {
-      // Map clinics to include distance or default values if they're missing
-      // (assuming distance is not in DB for now, add a mock distance so UI doesn't look empty)
       clinics.value = data.map((c) => ({
         ...c,
         clinicName: c.clinicName || 'Unnamed Clinic',
@@ -115,18 +120,19 @@ const filteredClinics = computed(() => {
 })
 
 function isClinicOpen(clinic) {
-  // Manual override takes precedence over schedule
   if (clinic.isOpen !== undefined) return clinic.isOpen
 
   const hrs = clinic.operatingHours || {}
   const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
   const today = hrs[day]
   if (!today?.open) return false
+
   const toMin = (t) => {
     if (!t || typeof t !== 'string') return 0
     const [hh, mm] = t.split(':').map(Number)
     return (hh || 0) * 60 + (mm || 0)
   }
+
   const now = new Date()
   const total = now.getHours() * 60 + now.getMinutes()
   return total >= toMin(today.start) && total < toMin(today.end)
@@ -203,37 +209,60 @@ function viewDetail(clinicId) {
 
 .clinic-list {
   margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  color: #64748b;
+  text-align: center;
+  font-weight: 700;
+  margin-top: 1rem;
+}
+
+.clinic-card {
+  margin-bottom: 0;
+  padding: 0.9rem;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .clinic-card-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: 0.6rem;
 }
 
 .clinic-card h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  line-height: 1.25;
 }
 
 .clinic-meta {
-  margin: 0.25rem 0 0;
+  margin: 0.2rem 0 0;
   color: #64748b;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
 }
 
 .clinic-address {
-  margin: 0.65rem 0;
+  margin: 0.55rem 0;
   color: #475569;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .service-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 0.75rem;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
 }
 
 .svc-chip {
@@ -241,32 +270,36 @@ function viewDetail(clinicId) {
   background: #eff6ff;
   color: #1d4ed8;
   font-weight: 700;
-  font-size: 0.78rem;
-  padding: 0.3rem 0.65rem;
+  font-size: 0.74rem;
+  padding: 0.28rem 0.6rem;
 }
 
 .svc-more {
   color: #64748b;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 .clinic-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.5rem;
+  gap: 0.75rem;
+  margin-top: auto;
 }
 
 .wait {
   color: #0f766e;
   font-weight: 700;
+  font-size: 0.95rem;
 }
 
 .btn {
   border: 0;
   border-radius: 0.65rem;
-  padding: 0.55rem 0.9rem;
+  padding: 0.5rem 0.85rem;
   cursor: pointer;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .btn-primary {
@@ -274,16 +307,17 @@ function viewDetail(clinicId) {
   color: white;
 }
 
-.no-results {
-  color: #64748b;
-  text-align: center;
-  font-weight: 700;
-  margin-top: 1rem;
-}
-
 @media (max-width: 720px) {
   .directory-filters {
     grid-template-columns: 1fr;
+  }
+
+  .clinic-list {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-card {
+    min-height: auto;
   }
 
   .clinic-bottom {
