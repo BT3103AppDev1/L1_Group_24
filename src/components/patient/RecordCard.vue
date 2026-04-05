@@ -8,10 +8,11 @@
                 <p v-if="record.doctor" class="record-doctor">Dr. {{ record.doctor }}</p>
             </div>
             <div class="record-header-right">
-                <span v-if="record.hasMedication" class="med-badge" :class="record.medicationStatus">
-                    {{ record.medicationStatus === 'ready' ? 'Collected' : 'Prescribed' }}
+                <!-- medication badge: shows if medications were prescribed and their status -->
+                <span v-if="record.medications?.length" class="med-badge" :class="record.medicationStatus">
+                    {{ medStatusLabel(record.medicationStatus) }}
                 </span>
-                <span class="expand-icon">{{ expanded ? 'up' : 'down' }}</span>
+                <span class="expand-icon">{{ expanded ? '▲' : '▼' }}</span>
             </div>
         </div>
 
@@ -29,13 +30,13 @@
                     <label>Instructions</label>
                     <p>{{ record.instructions }}</p>
                 </div>
-                <div v-if="medications && medications.length > 0" class="field">
+                <div v-if="record.medications?.length" class="field">
                     <label>Medications Prescribed</label>
                     <div class="med-list">
-                        <div v-for="(med, i) in medications" :key="i" class="med-item">
+                        <div v-for="(med, i) in record.medications" :key="i" class="med-item">
                             <p class="med-name">{{ med.name }}</p>
-                            <p v-if="med.purpose" class="med-detail"><b>Purpose:</b> {{ med.purpose }}</p>
                             <p v-if="med.dosage" class="med-detail"><b>Dosage:</b> {{ med.dosage }}</p>
+                            <p v-if="med.duration" class="med-detail"><b>Duration:</b> {{ med.duration }}</p>
                             <p v-if="med.frequency" class="med-detail"><b>Frequency:</b> {{ med.frequency }}</p>
                         </div>
                     </div>
@@ -50,10 +51,19 @@ import { ref } from 'vue'
 
 defineProps({
     record: { type: Object, required: true },
-    medications: { type: Array, default: () => [] },
 })
 
 const expanded = ref(false)
+
+function medStatusLabel(status) {
+    const map = {
+        pending: 'Prescribed',
+        preparing: 'Preparing',
+        ready: 'Ready to Collect',
+        dispensed: 'Dispensed',
+    }
+    return map[status] || 'Prescribed'
+}
 
 function formatDate(ts) {
     if (!ts) return ''
