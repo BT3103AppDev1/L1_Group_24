@@ -118,6 +118,18 @@ const router = createRouter({
       component: () => import('@/views/ClinicProfileView.vue'),
       meta: { requiresAuth: true, role: 'clinic' },
     },
+    {
+      path: '/clinic/post-consult',
+      name: 'PostConsult',
+      component: () => import('@/views/PostConsultView.vue'),
+      meta: { requiresAuth: true, role: 'clinic' },
+    },
+    {
+      path: '/clinic/medical-status',
+      name: 'MedicalStatus',
+      component: () => import('@/views/MedicalStatusView.vue'),
+      meta: { requiresAuth: true, role: 'clinic' },
+    },
     // {
     //   path: '/clinic/services',
     //   name: 'ManageServices',

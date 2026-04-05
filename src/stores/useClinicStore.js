@@ -12,7 +12,9 @@ import {
   subscribeToAllClinics,
   getAllServices,
   subscribeToClinicQueues,
-  getClinicServices
+  getClinicServices,
+  saveConsultationNotes,
+  getClinicConsultations
 } from '@/firebase/firestore.js'
 
 export const useClinicStore = defineStore('clinicStore', {
@@ -71,6 +73,31 @@ export const useClinicStore = defineStore('clinicStore', {
       try {
         const services = await getClinicServices(clinicId)
         return services
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /**
+     * Saves notes and medications for a finished consultation
+     */
+    async saveConsultation(data) {
+      this.loading = true
+      try {
+        const { ticketId, ...rest } = data
+        await saveConsultationNotes(ticketId, rest)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /**
+     * Fetches finished consultations to check their medication status
+     */
+    async fetchClinicConsultations(clinicId) {
+      this.loading = true
+      try {
+        return await getClinicConsultations(clinicId)
       } finally {
         this.loading = false
       }
