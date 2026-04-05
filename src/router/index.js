@@ -59,6 +59,12 @@ const router = createRouter({
       component: () => import('@/views/ProfileView.vue'),
       meta: { requiresAuth: true, role: 'patient' },
     },
+    {
+      path: '/patient/records',
+      name: 'PatientRecords',
+      component: () => import('@/views/RecordsView.vue'),
+      meta: { requiresAuth: true, role: 'patient' },
+    },
     // {
     //   path: '/patient/queue',
     //   name: 'QueueTracker',

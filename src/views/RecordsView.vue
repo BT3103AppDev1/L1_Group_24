@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { getPatientConsultations } from '@/firebase/firestore.js'
 import PageLayout from '@/components/layout/PageLayout.vue'
@@ -19,13 +19,24 @@ import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import RecordCard from '@/components/patient/RecordCard.vue'
 
 const authStore = useAuthStore()
-const loading = ref(false)
+const loading = ref(true)
 const records = ref([])
 
 onMounted(async () => {
-    loading.value = true
+    // Wait for Firebase Auth to finish before we read patientId
+    if (!authStore.initialized) {
+        await new Promise(resolve => {
+            const stop = watch(
+                () => authStore.initialized,
+                (val) => { if (val) { stop(); resolve() } }
+            )
+        })
+    }
+
     try {
         records.value = await getPatientConsultations(authStore.patientId)
+    } catch (e) {
+        console.error('[RecordsView] failed to load records:', e)
     } finally {
         loading.value = false
     }
