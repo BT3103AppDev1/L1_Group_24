@@ -565,3 +565,78 @@ export async function getPatientConsultations(patientId) {
         return bTime - aTime
     })
 }
+
+/**
+ * Saves consultation notes and medications to the ticket.
+ * @param {string} ticketId 
+ * @param {object} data
+ */
+export async function saveConsultationNotes(ticketId, data) {
+    const ticketRef = doc(db, 'queueTickets', ticketId)
+    // If medications exist, default status to 'pending'
+    const overrides = {}
+    if (data.medications && data.medications.length > 0) {
+        overrides.medicationStatus = 'pending'
+    } else {
+        overrides.medicationStatus = 'none'
+    }
+    await updateDoc(ticketRef, {
+        diagnosis: data.diagnosis,
+        notes: data.notes,
+        medications: data.medications,
+        ...overrides,
+        updatedAt: now()
+    })
+}
+
+/**
+ * Fetches all completed consultation tickets for a specific clinic.
+ * @param {string} clinicId
+ * @returns {Promise<object[]>}
+ */
+export async function getClinicConsultations(clinicId) {
+    const q = query(
+        collection(db, 'queueTickets'),
+        where('clinicId', '==', clinicId),
+        where('status', '==', 'completed')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+        const aTime = a.updatedAt?.toMillis?.() ?? 0
+        const bTime = b.updatedAt?.toMillis?.() ?? 0
+        return bTime - aTime
+    })
+}
+
+/**
+ * Updates the medication status of a completed consultation.
+ * @param {string} ticketId
+ * @param {string} status
+ */
+export async function updateConsultationMedStatus(ticketId, status) {
+    const ticketRef = doc(db, 'queueTickets', ticketId)
+    await updateDoc(ticketRef, {
+        medicationStatus: status,
+        updatedAt: now()
+    })
+}
+
+/**
+ * Fetches all currently 'serving' tickets for a specific clinic.
+ * Used to build the post-consult patient picker list.
+ * @param {string} clinicId
+ * @returns {Promise<object[]>}
+ */
+export async function getClinicServingTickets(clinicId) {
+    const q = query(
+        collection(db, 'queueTickets'),
+        where('clinicId', '==', clinicId),
+        where('status', '==', 'serving')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+        const aTime = a.joinedAt?.toMillis?.() ?? 0
+        const bTime = b.joinedAt?.toMillis?.() ?? 0
+        return aTime - bTime  // oldest first (waiting longest)
+    })
+}
