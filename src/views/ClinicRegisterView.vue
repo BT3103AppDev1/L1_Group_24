@@ -23,22 +23,42 @@
                     <label class="form-label">Services Offered <span class="required">*</span></label>
                     <div v-if="clinicStore.loading" class="services-loading">Loading services…</div>
                     <div v-else class="services-grid">
-                        <label
-                            v-for="svc in clinicStore.services"
-                            :key="svc.id"
-                            class="service-option"
-                            :class="{ selected: form.services.includes(svc.id) }"
-                        >
-                            <input
-                                type="checkbox"
-                                :value="svc.id"
-                                v-model="form.services"
-                                class="service-checkbox"
-                            />
+                        <label v-for="svc in clinicStore.services" :key="svc.id" class="service-option"
+                            :class="{ selected: form.services.includes(svc.id) }">
+                            <input type="checkbox" :value="svc.id" v-model="form.services" class="service-checkbox" />
                             {{ svc.name }}
                         </label>
                     </div>
                     <p v-if="errors.services" class="field-error">{{ errors.services }}</p>
+                </div>
+
+                <!-- Operating Hours -->
+                <div class="form-group">
+                    <label class="form-label">Operating Hours <span class="required">*</span></label>
+                    <p class="form-hint">Set the days and hours your clinic is open.</p>
+                    <div class="hours-grid">
+                        <div v-for="day in DAYS" :key="day.key" class="day-row">
+                            <label class="day-toggle">
+                                <input type="checkbox" v-model="form.operatingHours[day.key].open"
+                                    class="service-checkbox" />
+                                <span class="day-label">{{ day.label }}</span>
+                            </label>
+                            <div v-if="form.operatingHours[day.key].open" class="time-inputs">
+                                <div class="time-field">
+                                    <span class="time-label">Open</span>
+                                    <input type="time" v-model="form.operatingHours[day.key].start"
+                                        class="time-input" />
+                                </div>
+                                <span class="time-sep">–</span>
+                                <div class="time-field">
+                                    <span class="time-label">Close</span>
+                                    <input type="time" v-model="form.operatingHours[day.key].end" class="time-input" />
+                                </div>
+                            </div>
+                            <span v-else class="closed-label">Closed</span>
+                        </div>
+                    </div>
+                    <p v-if="errors.operatingHours" class="field-error">{{ errors.operatingHours }}</p>
                 </div>
 
                 <AppInputPassword v-model="form.password" label="Password" :error="errors.password" required />
@@ -88,15 +108,41 @@ const success = ref(false)
 
 const districtOptions = DISTRICTS.map(d => ({ value: d, label: d }))
 
+// Days of the week in the format the DB expects
+const DAYS = [
+    { key: 'mon', label: 'Monday' },
+    { key: 'tue', label: 'Tuesday' },
+    { key: 'wed', label: 'Wednesday' },
+    { key: 'thu', label: 'Thursday' },
+    { key: 'fri', label: 'Friday' },
+    { key: 'sat', label: 'Saturday' },
+    { key: 'sun', label: 'Sunday' },
+]
+
+// Default hours: Mon–Fri open 08:00–18:00, Sat 09:00–13:00, Sun closed
+function defaultHours() {
+    return {
+        mon: { open: true, start: '08:00', end: '18:00' },
+        tue: { open: true, start: '08:00', end: '18:00' },
+        wed: { open: true, start: '08:00', end: '18:00' },
+        thu: { open: true, start: '08:00', end: '18:00' },
+        fri: { open: true, start: '08:00', end: '18:00' },
+        sat: { open: true, start: '09:00', end: '13:00' },
+        sun: { open: false, start: '', end: '' },
+    }
+}
+
 const form = reactive({
     name: '', contactNumber: '', email: '', address: '',
     postalCode: '', district: '', services: [],
+    operatingHours: defaultHours(),
     password: '', confirmPassword: '',
 })
 
 const errors = reactive({
     name: '', contactNumber: '', email: '', address: '',
     postalCode: '', district: '', services: '',
+    operatingHours: '',
     password: '', confirmPassword: '',
 })
 
@@ -121,6 +167,27 @@ function validate() {
     if (!form.district) { errors.district = 'District is required'; ok = false }
     if (form.services.length === 0) { errors.services = 'Please select at least one service'; ok = false }
 
+    // Validate that open days have valid start/end times
+    const openDays = DAYS.filter(d => form.operatingHours[d.key].open)
+    if (openDays.length === 0) {
+        errors.operatingHours = 'Please set at least one open day'
+        ok = false
+    } else {
+        for (const d of openDays) {
+            const h = form.operatingHours[d.key]
+            if (!h.start || !h.end) {
+                errors.operatingHours = `Please set opening and closing times for ${d.label}`
+                ok = false
+                break
+            }
+            if (h.start >= h.end) {
+                errors.operatingHours = `${d.label}: closing time must be after opening time`
+                ok = false
+                break
+            }
+        }
+    }
+
     const pwRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
     if (!form.password) { errors.password = 'Password is required'; ok = false }
     else if (!pwRe.test(form.password)) { errors.password = 'Min 8 chars with uppercase, lowercase, number and special character'; ok = false }
@@ -128,6 +195,20 @@ function validate() {
     else if (form.password !== form.confirmPassword) { errors.confirmPassword = 'Passwords do not match'; ok = false }
 
     return ok
+}
+
+// Build a clean operatingHours object: closed days only have { open: false }
+function buildOperatingHours() {
+    const result = {}
+    for (const d of DAYS) {
+        const h = form.operatingHours[d.key]
+        if (h.open) {
+            result[d.key] = { open: true, start: h.start, end: h.end }
+        } else {
+            result[d.key] = { open: false }
+        }
+    }
+    return result
 }
 
 async function submit() {
@@ -143,6 +224,7 @@ async function submit() {
             postalCode: form.postalCode.trim(),
             district: form.district,
             services: form.services,
+            operatingHours: buildOperatingHours(),
             password: form.password,
         })
         success.value = true
@@ -169,6 +251,12 @@ async function submit() {
     color: #6b7280;
     font-size: .875rem;
     margin-bottom: 1.5rem;
+}
+
+.form-hint {
+    font-size: .8rem;
+    color: #9ca3af;
+    margin: .15rem 0 .6rem;
 }
 
 .auth-form {
@@ -200,51 +288,135 @@ async function submit() {
 }
 
 .required {
-  color: #ef4444;
-  margin-left: 2px;
+    color: #ef4444;
+    margin-left: 2px;
 }
 
 .services-loading {
-  font-size: .875rem;
-  color: #6b7280;
+    font-size: .875rem;
+    color: #6b7280;
 }
 
 .services-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: .5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .5rem;
 }
 
 .service-option {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .5rem .75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-  font-size: .875rem;
-  cursor: pointer;
-  transition: background .15s, border-color .15s;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: .5rem;
+    font-size: .875rem;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
 }
 
 .service-option:hover {
-  background: #f0f9ff;
-  border-color: #93c5fd;
+    background: #f0f9ff;
+    border-color: #93c5fd;
 }
 
 .service-option.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  font-weight: 500;
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 500;
 }
 
 .service-checkbox {
-  accent-color: #3b82f6;
+    accent-color: #3b82f6;
 }
 
 .field-error {
-  font-size: .8rem;
-  color: #ef4444;
+    font-size: .8rem;
+    color: #ef4444;
+    margin-top: .25rem;
+}
+
+/* --- Operating Hours --- */
+.hours-grid {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: .75rem;
+    padding: .75rem;
+    background: #f9fafb;
+}
+
+.day-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: .4rem .25rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.day-row:last-child {
+    border-bottom: none;
+}
+
+.day-toggle {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    cursor: pointer;
+    min-width: 110px;
+}
+
+.day-label {
+    font-size: .875rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.time-inputs {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.time-field {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.time-label {
+    font-size: .75rem;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.time-input {
+    padding: .3rem .5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: .4rem;
+    font-size: .82rem;
+    color: #1f2937;
+    background: white;
+    outline: none;
+    transition: border-color .15s;
+}
+
+.time-input:focus {
+    border-color: #3b82f6;
+}
+
+.time-sep {
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.closed-label {
+    font-size: .8rem;
+    color: #9ca3af;
+    font-style: italic;
 }
 </style>
