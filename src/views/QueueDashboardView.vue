@@ -3,7 +3,6 @@
         <AppSpinner v-if="loading" />
 
         <template v-else>
-            <!-- Clinic Status Toggle + Service Dropdown row -->
             <div class="dashboard-top-row">
                 <div class="custom-dropdown">
                     <button class="dropdown-trigger" @click="dropdownOpen = !dropdownOpen">
@@ -11,8 +10,13 @@
                         <span class="chevron" :class="{ open: dropdownOpen }">▼</span>
                     </button>
                     <div v-show="dropdownOpen" class="dropdown-menu">
-                        <div v-for="s in services" :key="s.id" class="dropdown-item"
-                            :class="{ active: s.id === activeServiceId }" @click="selectServiceLocal(s.id)">
+                        <div
+                            v-for="s in services"
+                            :key="s.id"
+                            class="dropdown-item"
+                            :class="{ active: s.id === activeServiceId }"
+                            @click="selectServiceLocal(s.id)"
+                        >
                             {{ s.serviceName }}
                         </div>
                     </div>
@@ -23,17 +27,35 @@
                     <AppBadge :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
                         {{ authStore.clinic?.isOpen ? 'OPEN' : 'CLOSED' }}
                     </AppBadge>
-                    <AppButton v-if="!authStore.clinic?.isOpen" variant="primary" size="sm" :disabled="togglingStatus"
-                        @click="toggleClinicStatus(true)">Open Clinic</AppButton>
-                    <AppButton v-else variant="danger" size="sm" :disabled="togglingStatus"
-                        @click="toggleClinicStatus(false)">Close Clinic</AppButton>
+
+                    <AppButton
+                        v-if="!authStore.clinic?.isOpen"
+                        variant="primary"
+                        size="sm"
+                        :disabled="togglingStatus"
+                        @click="toggleClinicStatus(true)"
+                    >
+                        Open Clinic
+                    </AppButton>
+
+                    <AppButton
+                        v-else
+                        variant="danger"
+                        size="sm"
+                        :disabled="togglingStatus"
+                        @click="toggleClinicStatus(false)"
+                    >
+                        Close Clinic
+                    </AppButton>
                 </AppCard>
             </div>
 
-            <!-- Stats -->
-            <QueueSummaryCard :waiting="stats.waiting" :serving="stats.serving" :completed="stats.completed" />
+            <QueueSummaryCard
+                :waiting="stats.waiting"
+                :serving="stats.serving"
+                :completed="stats.completed"
+            />
 
-            <!-- Queue Table -->
             <AppCard class="queue-table-card">
                 <div class="table-header">
                     <h3 class="table-title">Queue — {{ activeServiceName }}</h3>
@@ -56,37 +78,73 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <PatientRow v-for="(ticket, idx) in tickets" :key="ticket.id" :ticket="ticket"
-                                    :index="idx + 1" @update-status="updateStatus" @view="openDetail" />
+                                <PatientRow
+                                    v-for="(ticket, idx) in tickets"
+                                    :key="ticket.id"
+                                    :ticket="ticket"
+                                    :index="idx + 1"
+                                    @update-status="updateStatus"
+                                    @view="openDetail"
+                                />
                             </tbody>
                         </table>
                     </div>
                 </template>
 
-                <AppEmptyState v-else icon="🎫" title="Queue is empty" description="No tickets yet for this service." />
+                <AppEmptyState
+                    v-else
+                    icon = ""
+                    title="Queue is empty"
+                    description="No tickets yet for this service."
+                />
             </AppCard>
         </template>
 
-        <!-- Ticket Detail Modal -->
-        <AppModal v-if="detailTicket" :title="`Ticket ${detailTicket.ticketNumber}`" @close="detailTicket = null">
+        <AppModal
+            v-if="detailTicket"
+            :title="`Ticket ${detailTicket.ticketNumber}`"
+            @close="detailTicket = null"
+        >
             <div class="detail-rows">
-                <div class="d-row"><span>Patient</span><span>{{ detailTicket.patientName || 'Patient' }}</span></div>
-                <div class="d-row"><span>Status</span><span>{{ detailTicket.status }}</span></div>
-                <div class="d-row"><span>Joined</span><span>{{ formatTime(detailTicket.joinedAt) }}</span></div>
+                <div class="d-row">
+                    <span>Patient</span>
+                    <span>{{ detailTicket.patientName || 'Patient' }}</span>
+                </div>
+                <div class="d-row">
+                    <span>Status</span>
+                    <span>{{ detailTicket.status }}</span>
+                </div>
+                <div class="d-row">
+                    <span>Joined</span>
+                    <span>{{ formatTime(detailTicket.joinedAt) }}</span>
+                </div>
                 <div v-if="detailTicket.symptoms?.length" class="d-row symptoms-row">
                     <span>Symptoms</span>
                     <div class="chips">
                         <span v-for="s in detailTicket.symptoms" :key="s" class="chip">{{ s }}</span>
                     </div>
                 </div>
-                <div v-if="detailTicket.notes" class="d-row"><span>Notes</span><span>{{ detailTicket.notes }}</span>
+                <div v-if="detailTicket.notes" class="d-row">
+                    <span>Notes</span>
+                    <span>{{ detailTicket.notes }}</span>
                 </div>
             </div>
+
             <template #footer>
-                <AppButton v-if="detailTicket.status === 'waiting'" variant="primary" @click="callPatient">Call Patient
+                <AppButton
+                    v-if="detailTicket.status === 'waiting'"
+                    variant="primary"
+                    @click="callPatient"
+                >
+                    Call Patient
                 </AppButton>
-                <AppButton v-if="detailTicket.status === 'serving'" variant="secondary" @click="goToPostConsult">Post
-                    Consult</AppButton>
+                <AppButton
+                    v-if="detailTicket.status === 'serving'"
+                    variant="secondary"
+                    @click="goToPostConsult"
+                >
+                    Post Consult
+                </AppButton>
             </template>
         </AppModal>
     </DashboardLayout>
@@ -122,6 +180,9 @@ const detailTicket = ref(null)
 const togglingStatus = ref(false)
 const dropdownOpen = ref(false)
 
+const completedByService = ref({})
+const prevServingIdsByService = ref({})
+
 const tickets = computed(() => queueStore.clinicTickets)
 
 const activeServiceName = computed(() => {
@@ -131,12 +192,27 @@ const activeServiceName = computed(() => {
 const stats = computed(() => ({
     waiting: tickets.value.filter(t => t.status === 'waiting').length,
     serving: tickets.value.filter(t => t.status === 'serving').length,
-    completed: tickets.value.filter(t => t.status === 'completed').length,
+    completed: completedByService.value[activeServiceId.value] || 0,
 }))
 
 function selectService(id) {
     activeServiceId.value = id
     loadingTickets.value = true
+
+    if (completedByService.value[id] === undefined) {
+        completedByService.value = {
+            ...completedByService.value,
+            [id]: 0,
+        }
+    }
+
+    if (!prevServingIdsByService.value[id]) {
+        prevServingIdsByService.value = {
+            ...prevServingIdsByService.value,
+            [id]: [],
+        }
+    }
+
     queueStore.subscribeToClinicService(authStore.clinicId, id, () => {
         loadingTickets.value = false
     })
@@ -158,13 +234,14 @@ function openDetail(ticket) {
 async function toggleClinicStatus(open) {
     if (!authStore.clinicId) return
     togglingStatus.value = true
+
     try {
         await updateClinic(authStore.clinicId, { isOpen: open })
-
-        // Reset all queue counters to 0 and remove existing patients
         await resetClinicQueues(authStore.clinicId)
 
-        // Optimistically update local state so button flips immediately
+        completedByService.value = {}
+        prevServingIdsByService.value = {}
+
         if (authStore.clinic) authStore.clinic.isOpen = open
     } catch (e) {
         console.error('Failed to toggle clinic status:', e)
@@ -196,20 +273,58 @@ function formatTime(ts) {
     return d.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
 }
 
+watch(
+    [() => activeServiceId.value, () => tickets.value.map(t => `${t.id}:${t.status}`).join('|')],
+    () => {
+        const serviceId = activeServiceId.value
+        if (!serviceId) return
+
+        const currentActiveIds = new Set(tickets.value.map(t => t.id))
+        const currentServingIds = tickets.value
+            .filter(t => t.status === 'serving')
+            .map(t => t.id)
+
+        const prevServingIds = prevServingIdsByService.value[serviceId] || []
+
+        let completedAdded = 0
+
+        for (const ticketId of prevServingIds) {
+            if (!currentActiveIds.has(ticketId)) {
+                completedAdded += 1
+            }
+        }
+
+        if (completedAdded > 0) {
+            completedByService.value = {
+                ...completedByService.value,
+                [serviceId]: (completedByService.value[serviceId] || 0) + completedAdded,
+            }
+        }
+
+        prevServingIdsByService.value = {
+            ...prevServingIdsByService.value,
+            [serviceId]: currentServingIds,
+        }
+    }
+)
+
 onMounted(async () => {
     loading.value = true
 
-    // wait for Firebase auth to finish if it hasn't yet
     if (!authStore.initialized) {
         await new Promise(resolve => {
             const stop = watch(
                 () => authStore.initialized,
-                (val) => { if (val) { stop(); resolve() } }
+                (val) => {
+                    if (val) {
+                        stop()
+                        resolve()
+                    }
+                }
             )
         })
     }
 
-    // guard: if no clinic is logged in, redirect away
     if (!authStore.clinicId) {
         router.push('/login')
         return
@@ -277,14 +392,12 @@ onUnmounted(() => {
 
 .dropdown-trigger:hover {
     border-color: #0c0c0c;
-    /* Softer hover border color */
     background-color: #f8fafc;
 }
 
 .chevron {
     font-size: 0.75rem;
     color: #6b7280;
-    /* Gray chevron */
     transition: transform 0.2s;
 }
 
@@ -312,7 +425,6 @@ onUnmounted(() => {
     font-size: 0.95rem;
     font-weight: 600;
     color: #111404;
-    /* Changed to dark black/gray text */
     cursor: pointer;
     border-radius: 0.75rem;
     transition: all 0.2s;
