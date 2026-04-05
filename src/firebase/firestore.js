@@ -620,3 +620,23 @@ export async function updateConsultationMedStatus(ticketId, status) {
         updatedAt: now()
     })
 }
+
+/**
+ * Fetches all currently 'serving' tickets for a specific clinic.
+ * Used to build the post-consult patient picker list.
+ * @param {string} clinicId
+ * @returns {Promise<object[]>}
+ */
+export async function getClinicServingTickets(clinicId) {
+    const q = query(
+        collection(db, 'queueTickets'),
+        where('clinicId', '==', clinicId),
+        where('status', '==', 'serving')
+    )
+    const snap = await getDocs(q)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+        const aTime = a.joinedAt?.toMillis?.() ?? 0
+        const bTime = b.joinedAt?.toMillis?.() ?? 0
+        return aTime - bTime  // oldest first (waiting longest)
+    })
+}

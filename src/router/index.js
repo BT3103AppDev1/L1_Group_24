@@ -120,6 +120,12 @@ const router = createRouter({
     },
     {
       path: '/clinic/post-consult',
+      name: 'PostConsultList',
+      component: () => import('@/views/PostConsultListView.vue'),
+      meta: { requiresAuth: true, role: 'clinic' },
+    },
+    {
+      path: '/clinic/post-consult/form',
       name: 'PostConsult',
       component: () => import('@/views/PostConsultView.vue'),
       meta: { requiresAuth: true, role: 'clinic' },

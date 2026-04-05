@@ -1,5 +1,8 @@
 <template>
     <DashboardLayout title="Post Consultation">
+        <!-- Back to patient list -->
+        <button class="back-link" @click="router.push('/clinic/post-consult')">← Back to patient list</button>
+
         <AppSpinner v-if="loading" />
 
         <form v-else @submit.prevent="submit" class="consult-form">
@@ -108,7 +111,7 @@ async function submit() {
             medications: form.medications.filter(m => m.name.trim()),
         })
         await queueStore.updateStatus(ticketId, 'completed')
-        router.push('/clinic/dashboard')
+        router.push('/clinic/post-consult')  // back to the patient picker list
     } catch (e) {
         console.error('[PostConsult] submit error:', e)
         serverError.value = 'Failed to save consultation. Please try again.'
@@ -147,6 +150,24 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: .875rem;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 0;
+    margin-bottom: -.25rem;
+    transition: color .15s;
+}
+
+.back-link:hover {
+    color: #1d4ed8;
+}
+
 .consult-form {
     display: flex;
     flex-direction: column;

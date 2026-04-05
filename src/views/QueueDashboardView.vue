@@ -263,7 +263,7 @@ async function callPatient() {
 
 function goToPostConsult() {
     if (!detailTicket.value) return
-    router.push({ path: '/clinic/post-consult', query: { ticketId: detailTicket.value.id } })
+    router.push({ path: '/clinic/post-consult/form', query: { ticketId: detailTicket.value.id } })
     detailTicket.value = null
 }
 

@@ -14,7 +14,8 @@ import {
   subscribeToClinicQueues,
   getClinicServices,
   saveConsultationNotes,
-  getClinicConsultations
+  getClinicConsultations,
+  getClinicServingTickets
 } from '@/firebase/firestore.js'
 
 export const useClinicStore = defineStore('clinicStore', {
@@ -98,6 +99,19 @@ export const useClinicStore = defineStore('clinicStore', {
       this.loading = true
       try {
         return await getClinicConsultations(clinicId)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /**
+     * Fetches all tickets currently in 'serving' status for the clinic.
+     * Used to populate the post-consult patient picker list.
+     */
+    async fetchServingTickets(clinicId) {
+      this.loading = true
+      try {
+        return await getClinicServingTickets(clinicId)
       } finally {
         this.loading = false
       }
