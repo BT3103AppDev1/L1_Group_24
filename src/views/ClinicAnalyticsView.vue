@@ -112,6 +112,103 @@
           </div>
         </div>
       </AppCard>
+
+      <AppCard class="chart-card">
+        <!-- Hourly queue pattern for any selected day in the last week -->
+        <div class="chart-header">
+          <div>
+            <h2 class="section-title">Queue Volume by Hour</h2>
+            <p class="section-copy">
+              Review hourly queue traffic for any day in the last 7 days, limited to that day's
+              clinic opening hours.
+            </p>
+          </div>
+          <span class="range-pill">{{ selectedHourlyDay?.label || 'Last 7 days' }}</span>
+        </div>
+
+        <div class="day-picker">
+          <button
+            v-for="day in hourlyOptions"
+            :key="day.dateKey"
+            type="button"
+            class="day-pill"
+            :class="{ active: day.dateKey === selectedHourlyDateKey }"
+            @click="selectedHourlyDateKey = day.dateKey"
+          >
+            <span class="day-pill-top">{{ day.weekdayShort }}</span>
+            <span class="day-pill-bottom">{{ day.shortLabel }}</span>
+          </button>
+        </div>
+
+        <AppEmptyState
+          v-if="!selectedDayOpenHours"
+          icon="🕒"
+          title="Clinic is closed on this day"
+          description="Select another day from the last week to view hourly queue activity."
+        />
+
+        <div v-else class="chart-shell">
+          <div class="chart-frame">
+            <svg
+              class="chart-svg"
+              viewBox="0 0 760 320"
+              role="img"
+              aria-label="Line chart showing queue volume by hour for the selected day"
+            >
+              <defs>
+                <linearGradient id="hourlyVolumeFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02" />
+                </linearGradient>
+              </defs>
+
+              <g v-for="tick in hourlyTicks" :key="`hour-grid-${tick.value}`">
+                <line
+                  :x1="chartBounds.left"
+                  :x2="chartBounds.right"
+                  :y1="tick.y"
+                  :y2="tick.y"
+                  class="grid-line"
+                />
+                <text :x="chartBounds.left - 12" :y="tick.y + 4" class="axis-label axis-label--y">
+                  {{ tick.value }}
+                </text>
+              </g>
+
+              <path :d="hourlyAreaPath" class="area-path" fill="url(#hourlyVolumeFill)" />
+              <path :d="hourlyLinePath" class="line-path" />
+
+              <circle
+                v-for="point in hourlyPoints"
+                :key="`hour-point-${point.hour}`"
+                :cx="point.x"
+                :cy="point.y"
+                r="4"
+                class="point-dot"
+              />
+
+              <text
+                v-for="point in hourlyPoints"
+                :key="`hour-label-${point.hour}`"
+                :x="point.x"
+                :y="chartBounds.bottom + 24"
+                class="axis-label axis-label--x"
+              >
+                {{ point.shortLabel }}
+              </text>
+            </svg>
+          </div>
+
+          <div class="chart-summary">
+            <span>Open hours: {{ selectedDayHoursLabel }}</span>
+            <span>Peak hour: {{ peakHourlyLabel }}</span>
+          </div>
+
+          <p v-if="!hasSelectedHourlyVolume" class="empty-chart-note">
+            No queue joins were recorded during open hours on {{ selectedHourlyDay?.label }}.
+          </p>
+        </div>
+      </AppCard>
     </template>
   </DashboardLayout>
 </template>
@@ -124,7 +221,10 @@ import AppCard from '@/components/base/AppCard.vue'
 import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AlertBanner from '@/components/shared/AlertBanner.vue'
-import { subscribeToClinicDailyQueueHistory } from '@/firebase/firestore.js'
+import {
+  subscribeToClinicDailyQueueHistory,
+  subscribeToClinicHourlyQueueVolume,
+} from '@/firebase/firestore.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 
 const router = useRouter()
@@ -135,8 +235,11 @@ const loading = ref(true)
 const loadError = ref('')
 const history = ref([])
 const averageWaitTodayMinutes = ref(0)
+const hourlyHistory = ref([])
+const selectedHourlyDateKey = ref('')
 
 let unsubscribeHistory = null
+let unsubscribeHourlyHistory = null
 
 const chartBounds = {
   left: 52,
@@ -155,6 +258,25 @@ const shortDateFormatter = new Intl.DateTimeFormat('en-SG', {
 function parseDateKey(dateKey) {
   const [year, month, day] = dateKey.split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function formatHourLabel(hour) {
+  const normalized = ((hour + 11) % 12) + 1
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  return `${normalized} ${suffix}`
+}
+
+function parseTimeToMinutes(value) {
+  const [hours, minutes] = (value || '00:00').split(':').map(Number)
+  return hours * 60 + (minutes || 0)
+}
+
+function getWeekdayShortLabel(date) {
+  return new Intl.DateTimeFormat('en-SG', { weekday: 'short' }).format(date)
+}
+
+function isUsableHours(entry) {
+  return !!entry?.start && !!entry?.end && parseTimeToMinutes(entry.end) > parseTimeToMinutes(entry.start)
 }
 
 // Checks whether the selected date range contains any real queue activity
@@ -178,8 +300,101 @@ const averageWaitToday = computed(() => {
   return `${Math.round(averageWaitTodayMinutes.value)} min`
 })
 
+// Day selector options for the last 7 days
+const hourlyOptions = computed(() => {
+  return hourlyHistory.value.map((day, index) => {
+    const date = parseDateKey(day.dateKey)
+    return {
+      ...day,
+      weekdayShort: index === hourlyHistory.value.length - 1 ? 'Today' : getWeekdayShortLabel(date),
+    }
+  })
+})
+
+const selectedHourlyDay = computed(() => {
+  return hourlyHistory.value.find((day) => day.dateKey === selectedHourlyDateKey.value) || null
+})
+
+const clinicOperatingHours = computed(() => authStore.clinic?.operatingHours || {})
+const clinicOpeningHours = computed(() => authStore.clinic?.openingHours || {})
+
+const fallbackClinicHours = computed(() => {
+  const openingMatch = Object.values(clinicOpeningHours.value).find((entry) => isUsableHours(entry))
+  if (openingMatch) return openingMatch
+
+  const operatingMatch = Object.values(clinicOperatingHours.value).find((entry) => isUsableHours(entry))
+  return operatingMatch || null
+})
+
+const selectedDayOpenHours = computed(() => {
+  if (!selectedHourlyDay.value) return null
+
+  const weekdayKey = selectedHourlyDay.value.weekdayKey
+  const openingHours = clinicOpeningHours.value[weekdayKey]
+  const operatingHours = clinicOperatingHours.value[weekdayKey]
+
+  if (openingHours?.open && isUsableHours(openingHours)) return openingHours
+  if (operatingHours?.open && isUsableHours(operatingHours)) return operatingHours
+  if (isUsableHours(openingHours)) return openingHours
+  if (isUsableHours(operatingHours)) return operatingHours
+
+  return fallbackClinicHours.value
+})
+
+const selectedDayHoursLabel = computed(() => {
+  if (!selectedDayOpenHours.value) return 'Closed'
+  return `${selectedDayOpenHours.value.start} - ${selectedDayOpenHours.value.end}`
+})
+
+// Only show buckets that overlap the clinic's open hours for the selected day
+const filteredHourlyBuckets = computed(() => {
+  if (!selectedHourlyDay.value || !selectedDayOpenHours.value) return []
+
+  const openStart = parseTimeToMinutes(selectedDayOpenHours.value.start)
+  const openEnd = parseTimeToMinutes(selectedDayOpenHours.value.end)
+
+  return selectedHourlyDay.value.hourlyCounts
+    .filter((entry) => {
+      const bucketStart = entry.hour * 60
+      const bucketEnd = bucketStart + 60
+      return bucketEnd > openStart && bucketStart < openEnd
+    })
+    .map((entry) => ({
+      ...entry,
+      shortLabel: formatHourLabel(entry.hour),
+    }))
+})
+
+const hasSelectedHourlyVolume = computed(() => {
+  return filteredHourlyBuckets.value.some((entry) => entry.count > 0)
+})
+
+const maxHourlyCount = computed(() => {
+  return Math.max(...filteredHourlyBuckets.value.map((entry) => entry.count), 1)
+})
+
 const maxCount = computed(() => {
   return Math.max(...history.value.map((day) => day.count), 1)
+})
+
+// Maps each hour bucket into SVG coordinates for the line graph
+const hourlyPoints = computed(() => {
+  if (!filteredHourlyBuckets.value.length) return []
+
+  const width = chartBounds.right - chartBounds.left
+  const height = chartBounds.bottom - chartBounds.top
+  const divisor = Math.max(filteredHourlyBuckets.value.length - 1, 1)
+
+  return filteredHourlyBuckets.value.map((entry, index) => {
+    const x = chartBounds.left + (width * index) / divisor
+    const y = chartBounds.bottom - (entry.count / maxHourlyCount.value) * height
+
+    return {
+      ...entry,
+      x,
+      y,
+    }
+  })
 })
 
 // Maps each day's count into SVG coordinates for the line graph
@@ -228,6 +443,30 @@ const areaPath = computed(() => {
   ].join(' ')
 })
 
+// Builds the SVG path for the hourly chart line
+const hourlyLinePath = computed(() => {
+  if (!hourlyPoints.value.length) return ''
+
+  return hourlyPoints.value
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ')
+})
+
+// Builds the shaded area beneath the hourly chart line
+const hourlyAreaPath = computed(() => {
+  if (!hourlyPoints.value.length) return ''
+
+  const firstPoint = hourlyPoints.value[0]
+  const lastPoint = hourlyPoints.value[hourlyPoints.value.length - 1]
+  return [
+    `M ${firstPoint.x} ${chartBounds.bottom}`,
+    `L ${firstPoint.x} ${firstPoint.y}`,
+    ...hourlyPoints.value.slice(1).map((point) => `L ${point.x} ${point.y}`),
+    `L ${lastPoint.x} ${chartBounds.bottom}`,
+    'Z',
+  ].join(' ')
+})
+
 // Creates evenly spaced y-axis ticks based on the current range
 const yTicks = computed(() => {
   const tickCount = 4
@@ -236,6 +475,20 @@ const yTicks = computed(() => {
   return Array.from({ length: tickCount + 1 }, (_, index) => {
     const ratio = index / tickCount
     const value = Math.round(maxCount.value * (1 - ratio))
+    const y = chartBounds.top + height * ratio
+
+    return { value, y }
+  })
+})
+
+// Creates evenly spaced y-axis ticks for the hourly chart
+const hourlyTicks = computed(() => {
+  const tickCount = 4
+  const height = chartBounds.bottom - chartBounds.top
+
+  return Array.from({ length: tickCount + 1 }, (_, index) => {
+    const ratio = index / tickCount
+    const value = Math.round(maxHourlyCount.value * (1 - ratio))
     const y = chartBounds.top + height * ratio
 
     return { value, y }
@@ -294,6 +547,36 @@ function beginHistorySubscription() {
   )
 }
 
+// Starts the real-time Firestore listener for hourly queue totals in the last week
+function beginHourlySubscription() {
+  if (!authStore.clinicId) return
+
+  unsubscribeHourlyHistory = subscribeToClinicHourlyQueueVolume(
+    authStore.clinicId,
+    (series) => {
+      hourlyHistory.value = series
+      if (!selectedHourlyDateKey.value && series.length) {
+        selectedHourlyDateKey.value = series[series.length - 1].dateKey
+      }
+    },
+    () => {
+      loadError.value = 'Failed to load clinic analytics. Please try again shortly.'
+    },
+  )
+}
+
+const peakHourlyLabel = computed(() => {
+  if (!filteredHourlyBuckets.value.length || !hasSelectedHourlyVolume.value) {
+    return 'No queue activity'
+  }
+
+  const peak = filteredHourlyBuckets.value.reduce((best, entry) => {
+    return entry.count > best.count ? entry : best
+  }, filteredHourlyBuckets.value[0])
+
+  return `${formatHourLabel(peak.hour)} (${peak.count})`
+})
+
 onMounted(async () => {
   // Wait for Firebase auth before deciding whether to load or redirect
   if (!authStore.initialized) {
@@ -317,11 +600,13 @@ onMounted(async () => {
   }
 
   beginHistorySubscription()
+  beginHourlySubscription()
 })
 
 onUnmounted(() => {
   // Clean up the live analytics listener when leaving the page
   if (unsubscribeHistory) unsubscribeHistory()
+  if (unsubscribeHourlyHistory) unsubscribeHourlyHistory()
 })
 </script>
 
@@ -409,6 +694,49 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.day-picker {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.day-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 66px;
+  border: 1px solid rgba(191, 219, 254, 0.92);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.day-pill:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.day-pill.active {
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.96));
+  border-color: #60a5fa;
+  color: #1d4ed8;
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.12);
+}
+
+.day-pill-top {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.day-pill-bottom {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .chart-shell {
   display: flex;
   flex-direction: column;
@@ -478,9 +806,19 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.empty-chart-note {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 960px) {
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .day-picker {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -500,6 +838,11 @@ onUnmounted(() => {
 
   .chart-summary {
     font-size: 0.8rem;
+    flex-direction: column;
+  }
+
+  .day-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
