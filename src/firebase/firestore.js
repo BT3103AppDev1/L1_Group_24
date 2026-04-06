@@ -51,6 +51,13 @@ function formatDateLabel(date) {
   }).format(date)
 }
 
+function formatShortDateLabel(date) {
+  return new Intl.DateTimeFormat('en-SG', {
+    day: 'numeric',
+    month: 'short',
+  }).format(date)
+}
+
 // ---------------------------------------------------------------------------
 // Patients
 // ---------------------------------------------------------------------------
@@ -515,6 +522,68 @@ export function subscribeToClinicDailyQueueHistory(clinicId, callback, onError, 
     },
     (err) => {
       console.error('[Firestore] subscribeToClinicDailyQueueHistory error:', err)
+      if (onError) onError(err)
+    },
+  )
+}
+
+/**
+ * Real-time watcher for a clinic's hourly queue volume across the last N days.
+ * Counts each ticket once by the hour it joined the queue.
+ * @param {string} clinicId
+ * @param {function} callback
+ * @param {function} [onError]
+ * @param {number} [days]
+ * @returns {function}
+ */
+export function subscribeToClinicHourlyQueueVolume(clinicId, callback, onError, days = 7) {
+  const q = query(collection(db, 'queueTickets'), where('clinicId', '==', clinicId))
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const dayCount = Math.max(days, 1)
+      const today = startOfDay(new Date())
+      const startDate = new Date(today)
+      startDate.setDate(today.getDate() - (dayCount - 1))
+
+      const historyByDate = new Map()
+
+      Array.from({ length: dayCount }, (_, index) => {
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + index)
+        const dateKey = formatDateKey(currentDate)
+
+        historyByDate.set(dateKey, {
+          dateKey,
+          label: formatDateLabel(currentDate),
+          shortLabel: formatShortDateLabel(currentDate),
+          weekdayKey: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][currentDate.getDay()],
+          hourlyCounts: Array.from({ length: 24 }, (_, hour) => ({
+            hour,
+            count: 0,
+          })),
+        })
+      })
+
+      snap.docs.forEach((ticketDoc) => {
+        const joinedAt = ticketDoc.data().joinedAt?.toDate?.()
+        if (!(joinedAt instanceof Date) || Number.isNaN(joinedAt.getTime())) return
+
+        const joinedDay = startOfDay(joinedAt)
+        if (joinedDay < startDate || joinedDay > today) return
+
+        const dateKey = formatDateKey(joinedDay)
+        const dayEntry = historyByDate.get(dateKey)
+        if (!dayEntry) return
+
+        dayEntry.hourlyCounts[joinedAt.getHours()].count += 1
+      })
+
+      callback(Array.from(historyByDate.values()))
+    },
+    (err) => {
+      console.error('[Firestore] subscribeToClinicHourlyQueueVolume error:', err)
       if (onError) onError(err)
     },
   )
