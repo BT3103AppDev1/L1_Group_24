@@ -14,201 +14,158 @@
         @dismiss="loadError = ''"
       />
 
-      <!-- Quick summary cards for the clinic's recent queue activity -->
-      <section class="stats-grid">
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Average joins</p>
-          <p class="metric-value">{{ averageJoinsPerDay }}</p>
-          <p class="metric-meta">Per day in the last 30 days</p>
-        </AppCard>
+      <!-- TOP SECTION: DAILY ANALYTICS -->
+      <div class="analytics-header">
+        <h2 class="section-title">Daily Analytics <span class="badge-today">Today</span></h2>
+        <p class="section-desc">Real-time overview of your queue activity today.</p>
+      </div>
 
+      <section class="stats-grid mb-8">
         <AppCard class="metric-card" flat>
-          <p class="metric-label">Average wait today</p>
-          <p class="metric-value">{{ averageWaitToday }}</p>
-          <p class="metric-meta">Minutes across today's joins</p>
-        </AppCard>
-
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Today</p>
+          <p class="metric-label">Queue Joins</p>
           <p class="metric-value">{{ todayJoins }}</p>
-          <p class="metric-meta">Queue joins so far</p>
+          <p class="metric-meta">Total joins today</p>
+        </AppCard>
+
+        <AppCard class="metric-card" flat>
+          <p class="metric-label">Average Wait Time</p>
+          <p class="metric-value">{{ Math.round(averageWaitTodayMinutes) }}</p>
+          <p class="metric-meta">Mins per patient today</p>
+        </AppCard>
+
+        <AppCard class="metric-card" flat>
+          <p class="metric-label">Peak Hour</p>
+          <p class="metric-value text-md">{{ todayPeakHourLabel }}</p>
+          <p class="metric-meta">Highest queue volume</p>
         </AppCard>
       </section>
 
-      <AppCard class="chart-card">
-        <!-- Historical queue trend chart -->
+      <AppCard class="chart-card mb-12">
         <div class="chart-header">
           <div>
-            <h2 class="section-title">Daily Queue Joins</h2>
-            <p class="section-copy">
-              Historical patient arrivals across your clinic for the last 30 days.
-            </p>
+            <h3 class="chart-title">Today's Queue Volume by Hour</h3>
+            <p class="chart-copy">Real-time hourly arrivals based on opening hours.</p>
           </div>
-          <span class="range-pill">Last 30 days</span>
         </div>
-
-        <AppEmptyState
-          v-if="!hasHistory"
-          icon="📈"
-          title="No queue history yet"
-          description="Once patients start joining your clinic queue, the daily trend will appear here."
-        />
-
-        <div v-else class="chart-shell">
-          <div class="chart-frame">
-            <svg
-              class="chart-svg"
-              viewBox="0 0 760 320"
-              role="img"
-              aria-label="Line chart showing daily queue joins over the last 30 days"
-            >
-              <defs>
-                <linearGradient id="queueHistoryFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.32" />
-                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02" />
-                </linearGradient>
-              </defs>
-
-              <g v-for="tick in yTicks" :key="`grid-${tick.value}`">
-                <line
-                  :x1="chartBounds.left"
-                  :x2="chartBounds.right"
-                  :y1="tick.y"
-                  :y2="tick.y"
-                  class="grid-line"
-                />
-                <text :x="chartBounds.left - 12" :y="tick.y + 4" class="axis-label axis-label--y">
-                  {{ tick.value }}
-                </text>
-              </g>
-
-              <path :d="areaPath" class="area-path" />
-              <path :d="linePath" class="line-path" />
-
-              <circle
-                v-for="point in chartPoints"
-                :key="point.dateKey"
-                :cx="point.x"
-                :cy="point.y"
-                r="4"
-                class="point-dot"
-              />
-
-              <text
-                v-for="label in xAxisLabels"
-                :key="`label-${label.dateKey}`"
-                :x="label.x"
-                :y="chartBounds.bottom + 24"
-                class="axis-label axis-label--x"
-              >
-                {{ label.shortLabel }}
-              </text>
-            </svg>
-          </div>
-
-          <div class="chart-summary">
-            <span>{{ history[0]?.label }}</span>
-            <span>{{ history[history.length - 1]?.label }}</span>
-          </div>
+        <div class="chart-shell">
+          <Line
+            v-if="todayJoins > 0"
+            :data="todayLineChartData"
+            :options="lineChartOptions"
+            class="chart-canvas"
+          />
+          <AppEmptyState
+            v-else
+            icon="🕒"
+            title="No activity yet"
+            description="Hourly queue volume will appear here as patients join today."
+          />
         </div>
       </AppCard>
 
-      <AppCard class="chart-card">
-        <!-- Hourly queue pattern for any selected day in the last week -->
-        <div class="chart-header">
-          <div>
-            <h2 class="section-title">Queue Volume by Hour</h2>
-            <p class="section-copy">
-              Review hourly queue traffic for any day in the last 7 days, limited to that day's
-              clinic opening hours.
-            </p>
-          </div>
-          <span class="range-pill">{{ selectedHourlyDay?.label || 'Last 7 days' }}</span>
+      <!-- BOTTOM SECTION: PAST ANALYTICS -->
+      <div class="analytics-header split-header">
+        <div>
+          <h2 class="section-title">Past Analytics</h2>
+          <p class="section-desc">Historical queue trends and service breakdowns.</p>
         </div>
-
-        <div class="day-picker">
-          <button
-            v-for="day in hourlyOptions"
-            :key="day.dateKey"
-            type="button"
-            class="day-pill"
-            :class="{ active: day.dateKey === selectedHourlyDateKey }"
-            @click="selectedHourlyDateKey = day.dateKey"
+        <div class="analytics-controls">
+          <div class="toggle-group">
+            <button
+              class="toggle-btn"
+              :class="{ active: pastMode === 'week' }"
+              @click="pastMode = 'week'"
+            >
+              Past Week
+            </button>
+            <button
+              class="toggle-btn"
+              :class="{ active: pastMode === 'month' }"
+              @click="pastMode = 'month'"
+            >
+              Monthly
+            </button>
+          </div>
+          <select
+            v-model="selectedMonth"
+            class="app-select"
+            :class="{ 'hidden-select': pastMode !== 'month' }"
           >
-            <span class="day-pill-top">{{ day.weekdayShort }}</span>
-            <span class="day-pill-bottom">{{ day.shortLabel }}</span>
-          </button>
+            <option v-for="month in availableMonths" :key="month.value" :value="month.value">
+              {{ month.label }}
+            </option>
+          </select>
         </div>
+      </div>
+
+      <div v-if="loadingPast" class="state-shell min-h-[300px]">
+        <AppSpinner />
+      </div>
+      <template v-else>
+        <!-- Past Stats Cards -->
+        <section class="stats-grid mb-8">
+          <AppCard class="metric-card green-tint" flat>
+            <p class="metric-label">Average Joins</p>
+            <p class="metric-value">{{ pastAverageJoins }}</p>
+            <p class="metric-meta">Per day</p>
+          </AppCard>
+
+          <AppCard class="metric-card green-tint" flat>
+            <p class="metric-label">Average Wait Time</p>
+            <p class="metric-value">{{ pastAverageWaitTime }}</p>
+            <p class="metric-meta">Minutes per patient</p>
+          </AppCard>
+
+          <AppCard class="metric-card green-tint" flat>
+            <p class="metric-label">Peak Hour</p>
+            <p class="metric-value text-md">{{ pastPeakHourLabel }}</p>
+            <p class="metric-meta">Highest average volume</p>
+          </AppCard>
+        </section>
 
         <AppEmptyState
-          v-if="!selectedDayOpenHours"
-          icon="🕒"
-          title="Clinic is closed on this day"
-          description="Select another day from the last week to view hourly queue activity."
+          v-if="pastTickets.length === 0"
+          icon="📅"
+          title="No data found"
+          description="There is no queue history for this selected period."
         />
 
-        <div v-else class="chart-shell">
-          <div class="chart-frame">
-            <svg
-              class="chart-svg"
-              viewBox="0 0 760 320"
-              role="img"
-              aria-label="Line chart showing queue volume by hour for the selected day"
-            >
-              <defs>
-                <linearGradient id="hourlyVolumeFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28" />
-                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02" />
-                </linearGradient>
-              </defs>
-
-              <g v-for="tick in hourlyTicks" :key="`hour-grid-${tick.value}`">
-                <line
-                  :x1="chartBounds.left"
-                  :x2="chartBounds.right"
-                  :y1="tick.y"
-                  :y2="tick.y"
-                  class="grid-line"
-                />
-                <text :x="chartBounds.left - 12" :y="tick.y + 4" class="axis-label axis-label--y">
-                  {{ tick.value }}
-                </text>
-              </g>
-
-              <path :d="hourlyAreaPath" class="area-path" fill="url(#hourlyVolumeFill)" />
-              <path :d="hourlyLinePath" class="line-path" />
-
-              <circle
-                v-for="point in hourlyPoints"
-                :key="`hour-point-${point.hour}`"
-                :cx="point.x"
-                :cy="point.y"
-                r="4"
-                class="point-dot"
+        <div v-else class="charts-grid mb-12">
+          <!-- Past Line Chart -->
+          <AppCard class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="chart-title">Avg Daily Volume by Hours</h3>
+                <p class="chart-copy">When patients arrived during the day.</p>
+              </div>
+            </div>
+            <div class="chart-shell">
+              <Line
+                :data="pastLineChartData"
+                :options="lineChartOptionsGreen"
+                class="chart-canvas"
               />
+            </div>
+          </AppCard>
 
-              <text
-                v-for="point in hourlyPoints"
-                :key="`hour-label-${point.hour}`"
-                :x="point.x"
-                :y="chartBounds.bottom + 24"
-                class="axis-label axis-label--x"
-              >
-                {{ point.shortLabel }}
-              </text>
-            </svg>
-          </div>
-
-          <div class="chart-summary">
-            <span>Open hours: {{ selectedDayHoursLabel }}</span>
-            <span>Peak hour: {{ peakHourlyLabel }}</span>
-          </div>
-
-          <p v-if="!hasSelectedHourlyVolume" class="empty-chart-note">
-            No queue joins were recorded during open hours on {{ selectedHourlyDay?.label }}.
-          </p>
+          <!-- Service Proportion Pie Chart -->
+          <AppCard class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="chart-title">Service Proportion</h3>
+                <p class="chart-copy">Breakdown of services joined.</p>
+              </div>
+            </div>
+            <div class="chart-shell pie-shell">
+              <Pie
+                :data="pastPieChartData"
+                :options="pieChartOptions"
+                class="chart-canvas pie-canvas"
+              />
+            </div>
+          </AppCard>
         </div>
-      </AppCard>
+      </template>
     </template>
   </DashboardLayout>
 </template>
@@ -224,42 +181,71 @@ import AlertBanner from '@/components/shared/AlertBanner.vue'
 import {
   subscribeToClinicDailyQueueHistory,
   subscribeToClinicHourlyQueueVolume,
+  getPastAnalyticsTickets,
 } from '@/firebase/firestore.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
+
+// Import Chart.js logic
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+} from 'chart.js'
+import { Pie, Line } from 'vue-chartjs'
+
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+)
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Page state for the analytics dashboard
+// Root state
 const loading = ref(true)
 const loadError = ref('')
-const history = ref([])
-const averageWaitTodayMinutes = ref(0)
-const hourlyHistory = ref([])
-const selectedHourlyDateKey = ref('')
-
 let unsubscribeHistory = null
 let unsubscribeHourlyHistory = null
 
-const chartBounds = {
-  left: 52,
-  right: 724,
-  top: 24,
-  bottom: 268,
+// Real-time (Today) state
+const history = ref([])
+const averageWaitTodayMinutes = ref(0)
+const hourlyHistory = ref([])
+
+// Past Analytics state
+const pastMode = ref('week')
+const selectedMonth = ref('')
+const availableMonths = ref([])
+const loadingPast = ref(false)
+const pastTickets = ref([])
+
+// Generate month options
+function initMonths() {
+  const now = new Date()
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const lbl = new Intl.DateTimeFormat('en-SG', { month: 'long', year: 'numeric' }).format(d)
+    availableMonths.value.push({ value: val, label: lbl })
+  }
+  selectedMonth.value = availableMonths.value[0].value
 }
 
-// Formats short labels for the x-axis
-const shortDateFormatter = new Intl.DateTimeFormat('en-SG', {
-  day: 'numeric',
-  month: 'short',
-})
-
-// Converts the stored date key back into a local Date for display
-function parseDateKey(dateKey) {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  return new Date(year, (month || 1) - 1, day || 1)
-}
-
+// Formatters
 function formatHourLabel(hour) {
   const normalized = ((hour + 11) % 12) + 1
   const suffix = hour >= 12 ? 'PM' : 'AM'
@@ -271,314 +257,307 @@ function parseTimeToMinutes(value) {
   return hours * 60 + (minutes || 0)
 }
 
-function getWeekdayShortLabel(date) {
-  return new Intl.DateTimeFormat('en-SG', { weekday: 'short' }).format(date)
-}
-
 function isUsableHours(entry) {
-  return !!entry?.start && !!entry?.end && parseTimeToMinutes(entry.end) > parseTimeToMinutes(entry.start)
+  return (
+    !!entry?.start &&
+    !!entry?.end &&
+    parseTimeToMinutes(entry.end) > parseTimeToMinutes(entry.start)
+  )
 }
 
-// Checks whether the selected date range contains any real queue activity
-const hasHistory = computed(() => history.value.some((day) => day.count > 0))
-
-// Average number of joins across the visible 30-day range
-const averageJoinsPerDay = computed(() => {
-  if (!history.value.length) return '0'
-
-  const total = history.value.reduce((sum, day) => sum + day.count, 0)
-  return (total / history.value.length).toFixed(1)
-})
-
-// Uses the latest point in the series as today's join count
-const todayJoins = computed(() => {
-  return history.value[history.value.length - 1]?.count || 0
-})
-
-// Rounds the Firestore-derived wait time into a simple card value
-const averageWaitToday = computed(() => {
-  return `${Math.round(averageWaitTodayMinutes.value)} min`
-})
-
-// Day selector options for the last 7 days
-const hourlyOptions = computed(() => {
-  return hourlyHistory.value.map((day, index) => {
-    const date = parseDateKey(day.dateKey)
-    return {
-      ...day,
-      weekdayShort: index === hourlyHistory.value.length - 1 ? 'Today' : getWeekdayShortLabel(date),
-    }
-  })
-})
-
-const selectedHourlyDay = computed(() => {
-  return hourlyHistory.value.find((day) => day.dateKey === selectedHourlyDateKey.value) || null
-})
-
+// Clinic Hours Fallback checking
 const clinicOperatingHours = computed(() => authStore.clinic?.operatingHours || {})
 const clinicOpeningHours = computed(() => authStore.clinic?.openingHours || {})
 
 const fallbackClinicHours = computed(() => {
   const openingMatch = Object.values(clinicOpeningHours.value).find((entry) => isUsableHours(entry))
   if (openingMatch) return openingMatch
-
-  const operatingMatch = Object.values(clinicOperatingHours.value).find((entry) => isUsableHours(entry))
+  const operatingMatch = Object.values(clinicOperatingHours.value).find((entry) =>
+    isUsableHours(entry),
+  )
   return operatingMatch || null
 })
 
-const selectedDayOpenHours = computed(() => {
-  if (!selectedHourlyDay.value) return null
-
-  const weekdayKey = selectedHourlyDay.value.weekdayKey
-  const openingHours = clinicOpeningHours.value[weekdayKey]
-  const operatingHours = clinicOperatingHours.value[weekdayKey]
-
-  if (openingHours?.open && isUsableHours(openingHours)) return openingHours
-  if (operatingHours?.open && isUsableHours(operatingHours)) return operatingHours
-  if (isUsableHours(openingHours)) return openingHours
-  if (isUsableHours(operatingHours)) return operatingHours
-
-  return fallbackClinicHours.value
+// === DAILY ANALYTICS (TODAY) ===
+const todayJoins = computed(() => {
+  if (!history.value.length) return 0
+  return history.value[history.value.length - 1]?.count || 0
 })
 
-const selectedDayHoursLabel = computed(() => {
-  if (!selectedDayOpenHours.value) return 'Closed'
-  return `${selectedDayOpenHours.value.start} - ${selectedDayOpenHours.value.end}`
+const todayHourlyActivity = computed(() => {
+  if (!hourlyHistory.value.length) return null
+  return hourlyHistory.value[hourlyHistory.value.length - 1]
 })
 
-// Only show buckets that overlap the clinic's open hours for the selected day
-const filteredHourlyBuckets = computed(() => {
-  if (!selectedHourlyDay.value || !selectedDayOpenHours.value) return []
+const todayPeakHourObj = computed(() => {
+  const todayRecord = todayHourlyActivity.value
+  if (!todayRecord || !todayRecord.hourlyCounts) return null
 
-  const openStart = parseTimeToMinutes(selectedDayOpenHours.value.start)
-  const openEnd = parseTimeToMinutes(selectedDayOpenHours.value.end)
-
-  return selectedHourlyDay.value.hourlyCounts
-    .filter((entry) => {
-      const bucketStart = entry.hour * 60
-      const bucketEnd = bucketStart + 60
-      return bucketEnd > openStart && bucketStart < openEnd
-    })
-    .map((entry) => ({
-      ...entry,
-      shortLabel: formatHourLabel(entry.hour),
-    }))
-})
-
-const hasSelectedHourlyVolume = computed(() => {
-  return filteredHourlyBuckets.value.some((entry) => entry.count > 0)
-})
-
-const maxHourlyCount = computed(() => {
-  return Math.max(...filteredHourlyBuckets.value.map((entry) => entry.count), 1)
-})
-
-const maxCount = computed(() => {
-  return Math.max(...history.value.map((day) => day.count), 1)
-})
-
-// Maps each hour bucket into SVG coordinates for the line graph
-const hourlyPoints = computed(() => {
-  if (!filteredHourlyBuckets.value.length) return []
-
-  const width = chartBounds.right - chartBounds.left
-  const height = chartBounds.bottom - chartBounds.top
-  const divisor = Math.max(filteredHourlyBuckets.value.length - 1, 1)
-
-  return filteredHourlyBuckets.value.map((entry, index) => {
-    const x = chartBounds.left + (width * index) / divisor
-    const y = chartBounds.bottom - (entry.count / maxHourlyCount.value) * height
-
-    return {
-      ...entry,
-      x,
-      y,
+  let max = -1
+  let peak = null
+  todayRecord.hourlyCounts.forEach((hc) => {
+    if (hc.count > max) {
+      max = hc.count
+      peak = hc
     }
   })
+  return peak?.count > 0 ? peak : null
 })
 
-// Maps each day's count into SVG coordinates for the line graph
-const chartPoints = computed(() => {
-  if (!history.value.length) return []
-
-  const width = chartBounds.right - chartBounds.left
-  const height = chartBounds.bottom - chartBounds.top
-  const maxValue = maxCount.value
-  const divisor = Math.max(history.value.length - 1, 1)
-
-  return history.value.map((day, index) => {
-    const x = chartBounds.left + (width * index) / divisor
-    const y = chartBounds.bottom - (day.count / maxValue) * height
-
-    return {
-      ...day,
-      x,
-      y,
-      shortLabel: shortDateFormatter.format(parseDateKey(day.dateKey)),
-    }
-  })
+const todayPeakHourLabel = computed(() => {
+  const peak = todayPeakHourObj.value
+  if (!peak) return '--'
+  return `${formatHourLabel(peak.hour)} (${peak.count})`
 })
 
-// Builds the SVG path for the chart line
-const linePath = computed(() => {
-  if (!chartPoints.value.length) return ''
+const todayLineChartData = computed(() => {
+  const counts = todayHourlyActivity.value?.hourlyCounts || []
+  let startHour = 8
+  let endHour = 20
 
-  return chartPoints.value
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ')
-})
-
-// Builds the shaded area beneath the chart line
-const areaPath = computed(() => {
-  if (!chartPoints.value.length) return ''
-
-  const firstPoint = chartPoints.value[0]
-  const lastPoint = chartPoints.value[chartPoints.value.length - 1]
-  return [
-    `M ${firstPoint.x} ${chartBounds.bottom}`,
-    `L ${firstPoint.x} ${firstPoint.y}`,
-    ...chartPoints.value.slice(1).map((point) => `L ${point.x} ${point.y}`),
-    `L ${lastPoint.x} ${chartBounds.bottom}`,
-    'Z',
-  ].join(' ')
-})
-
-// Builds the SVG path for the hourly chart line
-const hourlyLinePath = computed(() => {
-  if (!hourlyPoints.value.length) return ''
-
-  return hourlyPoints.value
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ')
-})
-
-// Builds the shaded area beneath the hourly chart line
-const hourlyAreaPath = computed(() => {
-  if (!hourlyPoints.value.length) return ''
-
-  const firstPoint = hourlyPoints.value[0]
-  const lastPoint = hourlyPoints.value[hourlyPoints.value.length - 1]
-  return [
-    `M ${firstPoint.x} ${chartBounds.bottom}`,
-    `L ${firstPoint.x} ${firstPoint.y}`,
-    ...hourlyPoints.value.slice(1).map((point) => `L ${point.x} ${point.y}`),
-    `L ${lastPoint.x} ${chartBounds.bottom}`,
-    'Z',
-  ].join(' ')
-})
-
-// Creates evenly spaced y-axis ticks based on the current range
-const yTicks = computed(() => {
-  const tickCount = 4
-  const height = chartBounds.bottom - chartBounds.top
-
-  return Array.from({ length: tickCount + 1 }, (_, index) => {
-    const ratio = index / tickCount
-    const value = Math.round(maxCount.value * (1 - ratio))
-    const y = chartBounds.top + height * ratio
-
-    return { value, y }
-  })
-})
-
-// Creates evenly spaced y-axis ticks for the hourly chart
-const hourlyTicks = computed(() => {
-  const tickCount = 4
-  const height = chartBounds.bottom - chartBounds.top
-
-  return Array.from({ length: tickCount + 1 }, (_, index) => {
-    const ratio = index / tickCount
-    const value = Math.round(maxHourlyCount.value * (1 - ratio))
-    const y = chartBounds.top + height * ratio
-
-    return { value, y }
-  })
-})
-
-// Shows a small set of x-axis labels to keep the chart readable on mobile
-const xAxisLabels = computed(() => {
-  if (!chartPoints.value.length) return []
-
-  const targetIndexes = [0, 7, 14, 21, chartPoints.value.length - 1]
-  const uniqueIndexes = [
-    ...new Set(targetIndexes.filter((index) => index < chartPoints.value.length)),
-  ]
-
-  return uniqueIndexes.map((index) => {
-    const point = chartPoints.value[index]
-    return {
-      dateKey: point.dateKey,
-      x: point.x,
-      shortLabel: point.shortLabel,
-    }
-  })
-})
-
-// Starts the real-time Firestore listener for clinic analytics
-function beginHistorySubscription() {
-  if (!authStore.clinicId) {
-    loading.value = false
-    router.push('/clinic/login')
-    return
+  const fallback = fallbackClinicHours.value
+  if (fallback && isUsableHours(fallback)) {
+    startHour = Math.floor(parseTimeToMinutes(fallback.start) / 60)
+    startHour = Math.max(0, startHour - 1) // pad open hour start
+    endHour = Math.ceil(parseTimeToMinutes(fallback.end) / 60)
   }
 
-  let handledFirstPayload = false
+  const filtered = counts.filter((c) => c.hour >= startHour && c.hour <= endHour)
+
+  return {
+    labels: filtered.map((c) => formatHourLabel(c.hour)),
+    datasets: [
+      {
+        label: 'Joins',
+        data: filtered.map((c) => c.count),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  }
+})
+
+// === PAST ANALYTICS ===
+
+// Fetch past data whenever mode or month changes
+async function fetchPastAnalytics() {
+  if (!authStore.clinicId) return
+  loadingPast.value = true
+
+  try {
+    let start, end
+    const now = new Date()
+
+    if (pastMode.value === 'week') {
+      start = new Date(now)
+      start.setDate(now.getDate() - 7)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
+      end.setHours(23, 59, 59, 999)
+    } else {
+      const [y, m] = selectedMonth.value.split('-').map(Number)
+      start = new Date(y, m - 1, 1, 0, 0, 0, 0)
+      end = new Date(y, m, 0, 23, 59, 59, 999)
+    }
+
+    pastTickets.value = await getPastAnalyticsTickets(authStore.clinicId, start, end)
+  } catch (err) {
+    console.error('Failed to load past analytics:', err)
+  } finally {
+    loadingPast.value = false
+  }
+}
+
+watch([pastMode, selectedMonth], fetchPastAnalytics)
+
+const pastPeriodDays = computed(() => {
+  if (pastMode.value === 'week') return 7
+  const [y, m] = selectedMonth.value.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+})
+
+const pastAverageJoins = computed(() => {
+  if (!pastTickets.value.length) return 0
+  return (pastTickets.value.length / pastPeriodDays.value).toFixed(1)
+})
+
+const pastAverageWaitTime = computed(() => {
+  if (!pastTickets.value.length) return 0
+  let totalWait = 0
+  let waitCount = 0
+  pastTickets.value.forEach((t) => {
+    if (typeof t.estimatedWaitTime === 'number') {
+      totalWait += t.estimatedWaitTime
+      waitCount++
+    }
+  })
+  return waitCount > 0 ? Math.round(totalWait / waitCount) : 0
+})
+
+const pastHourlyData = computed(() => {
+  const hourly = Array.from({ length: 24 }, () => 0)
+  pastTickets.value.forEach((t) => {
+    const d = t.joinedAt?.toDate?.()
+    if (d) {
+      hourly[d.getHours()] += 1
+    }
+  })
+  return hourly
+})
+
+const pastPeakHourLabel = computed(() => {
+  let max = -1
+  let peakHour = -1
+  pastHourlyData.value.forEach((count, i) => {
+    if (count > max) {
+      max = count
+      peakHour = i
+    }
+  })
+  if (max === 0) return '--'
+  return `${formatHourLabel(peakHour)} (${(max / pastPeriodDays.value).toFixed(1)} /day)`
+})
+
+const pastLineChartData = computed(() => {
+  let startHour = 8
+  let endHour = 20
+
+  const fallback = fallbackClinicHours.value
+  if (fallback && isUsableHours(fallback)) {
+    startHour = Math.floor(parseTimeToMinutes(fallback.start) / 60)
+    startHour = Math.max(0, startHour - 1)
+    endHour = Math.ceil(parseTimeToMinutes(fallback.end) / 60)
+  }
+
+  const labels = []
+  const data = []
+  for (let i = startHour; i <= endHour; i++) {
+    labels.push(formatHourLabel(i))
+    data.push(pastHourlyData.value[i] / pastPeriodDays.value)
+  }
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Avg Joins',
+        data,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  }
+})
+
+const pastPieChartData = computed(() => {
+  const serviceCounts = {}
+  pastTickets.value.forEach((t) => {
+    const sn = t.serviceName || 'Other'
+    serviceCounts[sn] = (serviceCounts[sn] || 0) + 1
+  })
+
+  const labels = Object.keys(serviceCounts)
+  const data = Object.values(serviceCounts)
+
+  return {
+    labels,
+    datasets: [
+      {
+        data,
+        backgroundColor: [
+          '#3b82f6',
+          '#10b981',
+          '#f59e0b',
+          '#ec4899',
+          '#8b5cf6',
+          '#ef4444',
+          '#06b6d4',
+          '#14b8a6',
+          '#6366f1',
+        ],
+        borderWidth: 1,
+        borderColor: '#fff',
+      },
+    ],
+  }
+})
+
+// === CHART OPTIONS ===
+const lineChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          let y = context.parsed.y
+          if (y % 1 !== 0) y = y.toFixed(1)
+          return ` ${y} joins`
+        },
+      },
+    },
+  },
+  scales: {
+    y: { beginAtZero: true, border: { dash: [4, 4] } },
+    x: { grid: { display: false } },
+  },
+}
+
+const lineChartOptionsGreen = {
+  ...lineChartOptions,
+  // custom overrides if necessary
+}
+
+const pieChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'right',
+      labels: { boxWidth: 14, font: { size: 12 } },
+    },
+  },
+}
+
+// === LIFECYCLE ===
+function beginSubscriptions() {
+  if (!authStore.clinicId) return
+
+  let handledHistory = false
 
   unsubscribeHistory = subscribeToClinicDailyQueueHistory(
     authStore.clinicId,
-    ({ history: series, averageWaitToday }) => {
-      history.value = series
-      averageWaitTodayMinutes.value = averageWaitToday
-      loadError.value = ''
-
-      if (!handledFirstPayload) {
+    (res) => {
+      history.value = res.history
+      averageWaitTodayMinutes.value = res.averageWaitToday
+      if (!handledHistory) {
         loading.value = false
-        handledFirstPayload = true
+        handledHistory = true
       }
     },
     () => {
-      loadError.value = 'Failed to load clinic analytics. Please try again shortly.'
-
-      if (!handledFirstPayload) {
-        loading.value = false
-        handledFirstPayload = true
-      }
+      loadError.value = 'Failed to load daily analytics.'
+      loading.value = false
     },
   )
-}
-
-// Starts the real-time Firestore listener for hourly queue totals in the last week
-function beginHourlySubscription() {
-  if (!authStore.clinicId) return
 
   unsubscribeHourlyHistory = subscribeToClinicHourlyQueueVolume(
     authStore.clinicId,
     (series) => {
       hourlyHistory.value = series
-      if (!selectedHourlyDateKey.value && series.length) {
-        selectedHourlyDateKey.value = series[series.length - 1].dateKey
-      }
     },
-    () => {
-      loadError.value = 'Failed to load clinic analytics. Please try again shortly.'
-    },
+    () => {}, // error handled above
   )
 }
 
-const peakHourlyLabel = computed(() => {
-  if (!filteredHourlyBuckets.value.length || !hasSelectedHourlyVolume.value) {
-    return 'No queue activity'
-  }
-
-  const peak = filteredHourlyBuckets.value.reduce((best, entry) => {
-    return entry.count > best.count ? entry : best
-  }, filteredHourlyBuckets.value[0])
-
-  return `${formatHourLabel(peak.hour)} (${peak.count})`
-})
-
 onMounted(async () => {
-  // Wait for Firebase auth before deciding whether to load or redirect
+  initMonths()
+
   if (!authStore.initialized) {
     await new Promise((resolve) => {
       const stop = watch(
@@ -599,12 +578,11 @@ onMounted(async () => {
     return
   }
 
-  beginHistorySubscription()
-  beginHourlySubscription()
+  beginSubscriptions()
+  fetchPastAnalytics()
 })
 
 onUnmounted(() => {
-  // Clean up the live analytics listener when leaving the page
   if (unsubscribeHistory) unsubscribeHistory()
   if (unsubscribeHourlyHistory) unsubscribeHourlyHistory()
 })
@@ -614,20 +592,139 @@ onUnmounted(() => {
 .state-shell {
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 4rem 0;
+}
+.min-h-\[300px\] {
+  min-height: 300px;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+.mb-8 {
+  margin-bottom: 2rem;
+}
+.mb-10 {
+  margin-bottom: 2.5rem;
+}
+.mb-12 {
+  margin-bottom: 3rem;
+}
+.ml-4 {
+  margin-left: 1rem;
+}
+
+.analytics-header {
+  margin-bottom: 1.5rem;
+}
+
+.split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.analytics-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.hidden-select {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-desc {
+  margin: 0.25rem 0 0 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.badge-today {
+  font-size: 0.75rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toggle-group {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.toggle-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  color: #334155;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.app-select {
+  padding: 0.5rem 2rem 0.5rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .metric-card {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 1.25rem;
+  padding: 1.5rem;
+}
+
+.metric-card.green-tint .metric-value {
+  color: #10b981;
 }
 
 .metric-label {
@@ -646,179 +743,76 @@ onUnmounted(() => {
   line-height: 1;
   color: #1d4ed8;
 }
+.metric-value.text-md {
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  padding: 0.3rem 0;
+}
 
 .metric-meta {
   margin: 0;
   font-size: 0.92rem;
-  color: #6b7280;
+  color: #94a3b8;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1.5rem;
 }
 
 .chart-card {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.4rem;
+  padding: 1.5rem;
 }
 
 .chart-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
-.section-title {
+.chart-title {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 700;
   color: #1f2937;
 }
 
-.section-copy {
+.chart-copy {
   margin: 0.45rem 0 0;
-  max-width: 38rem;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-.range-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 0.85rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.day-picker {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.day-pill {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  align-items: center;
-  justify-content: center;
-  min-height: 66px;
-  border: 1px solid rgba(191, 219, 254, 0.92);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.9);
   color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.day-pill:hover {
-  border-color: #93c5fd;
-  transform: translateY(-1px);
-}
-
-.day-pill.active {
-  background: linear-gradient(180deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.96));
-  border-color: #60a5fa;
-  color: #1d4ed8;
-  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.12);
-}
-
-.day-pill-top {
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.day-pill-bottom {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .chart-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.chart-frame {
   position: relative;
-  border-radius: 1rem;
-  padding: 1rem;
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 0.98));
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  border-radius: 0.75rem;
   min-height: 320px;
-  overflow: hidden;
-}
-
-.chart-svg {
   width: 100%;
-  height: 100%;
-  display: block;
 }
 
-.grid-line {
-  stroke: rgba(148, 163, 184, 0.3);
-  stroke-width: 1;
-  stroke-dasharray: 4 6;
-}
-
-.axis-label {
-  fill: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.axis-label--y {
-  text-anchor: end;
-}
-
-.axis-label--x {
-  text-anchor: middle;
-}
-
-.area-path {
-  fill: url(#queueHistoryFill);
-}
-
-.line-path {
-  fill: none;
-  stroke: #2563eb;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.point-dot {
-  fill: #ffffff;
-  stroke: #2563eb;
-  stroke-width: 3;
-}
-
-.chart-summary {
+.pie-shell {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.empty-chart-note {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.9rem;
+  justify-content: center;
+  align-items: center;
 }
 
 @media (max-width: 960px) {
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
-
-  .day-picker {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .split-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .analytics-controls {
+    flex-wrap: wrap;
   }
 }
 
@@ -826,23 +820,8 @@ onUnmounted(() => {
   .chart-card {
     padding: 1.1rem;
   }
-
-  .chart-frame {
-    padding: 0.75rem 0.5rem;
+  .chart-shell {
     min-height: 280px;
-  }
-
-  .section-copy {
-    font-size: 0.92rem;
-  }
-
-  .chart-summary {
-    font-size: 0.8rem;
-    flex-direction: column;
-  }
-
-  .day-picker {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
