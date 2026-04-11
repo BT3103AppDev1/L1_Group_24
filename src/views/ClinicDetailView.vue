@@ -225,17 +225,22 @@ async function handleJoinQueue() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1.5rem;
 }
 
 .clinic-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #1d4ed8;
+  color: var(--color-primary-dark);
 }
 
 .meta {
   color: #64748b;
   margin: 0.3rem 0;
+}
+
+.services-section {
+  padding: 1.5rem;
 }
 
 .services-section h2 {

@@ -6,14 +6,14 @@
         <form @submit.prevent="submit" class="auth-form" novalidate>
             <AppInput v-model="form.fullName" label="Full Name" placeholder="e.g. Tan Ah Ming" :error="errors.fullName"
                 required />
-            <AppInput v-model="form.email" label="Email Address" type="email" placeholder="you@email.com"
+            <AppInput v-model="form.email" label="Email Address" type="email" placeholder="e.g. example@email.com"
                 :error="errors.email" required />
             <AppInput v-model="form.mobileNumber" label="Mobile Number" placeholder="e.g. 91234567"
                 :error="errors.mobileNumber" required />
             <AppInput v-model="form.postalCode" label="Residential Postal Code" placeholder="e.g. 123456"
                 :error="errors.postalCode" required />
             <AppInputPassword v-model="form.password" label="Password"
-                placeholder="Min 8 chars, upper, lower, number, special" :error="errors.password" required />
+                placeholder="Enter your password" :error="errors.password" required />
             <AppInputPassword v-model="form.confirmPassword" label="Confirm Password"
                 placeholder="Re-enter your password" :error="errors.confirmPassword" required />
 
@@ -25,7 +25,7 @@
 
         <p class="auth-footer">
             Already have an account?
-            <RouterLink to="/login">Log In</RouterLink>
+            <RouterLink to="/login">Log in here</RouterLink>
         </p>
     </AuthLayout>
 </template>
@@ -64,7 +64,7 @@ function validate() {
 
     const pwRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
     if (!form.password) { errors.password = 'Password is required'; ok = false }
-    else if (!pwRe.test(form.password)) { errors.password = 'Min 8 chars with uppercase, lowercase, number and special character'; ok = false }
+    else if (!pwRe.test(form.password)) { errors.password = 'Minimum 8 characters with at least one uppercase, lowercase, number and special character'; ok = false }
 
     if (!form.confirmPassword) { errors.confirmPassword = 'Please confirm your password'; ok = false }
     else if (form.password !== form.confirmPassword) { errors.confirmPassword = 'Passwords do not match'; ok = false }
