@@ -709,3 +709,31 @@ export async function getClinicServingTickets(clinicId) {
         return aTime - bTime  // oldest first (waiting longest)
     })
 }
+
+/**
+ * Fetches all queue tickets for a clinic, filtered locally by date, for analytics aggregation
+ * @param {string} clinicId
+ * @param {Date} startDate
+ * @param {Date} endDate
+ * @returns {Promise<object[]>}
+ */
+export async function getPastAnalyticsTickets(clinicId, startDate, endDate) {
+  const q = query(
+      collection(db, 'queueTickets'),
+      where('clinicId', '==', clinicId)
+  )
+  const snap = await getDocs(q)
+  
+  const results = []
+  snap.docs.forEach(d => {
+    const data = d.data()
+    const joinedAt = data.joinedAt?.toDate?.()
+    if (!(joinedAt instanceof Date) || Number.isNaN(joinedAt.getTime())) return
+    
+    if (joinedAt >= startDate && joinedAt <= endDate) {
+      results.push({ id: d.id, ...data })
+    }
+  })
+  
+  return results
+}
