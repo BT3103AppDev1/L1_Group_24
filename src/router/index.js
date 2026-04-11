@@ -35,6 +35,12 @@ const router = createRouter({
       component: () => import('@/views/LoginView.vue'),
       meta: { guestOnly: true },
      },
+     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('@/views/ForgotPasswordView.vue'),
+      meta: { guestOnly: true },
+    },
 
     // Patient Specific views
     {
