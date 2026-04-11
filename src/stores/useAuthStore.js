@@ -22,6 +22,7 @@ export const useAuthStore = defineStore('auth', {
     role: null,
     loading: false,
     initialized: false,
+    isLoggingIn: false,
   }),
 
   getters: {
@@ -36,6 +37,8 @@ export const useAuthStore = defineStore('auth', {
     // set up Firebase Auth listener to get user data
     initAuth() {
       onAuthChange(async (firebaseUser) => {
+        if (this.isLoggingIn) return 
+
         this.user = firebaseUser
 
         if (firebaseUser) {
@@ -101,21 +104,33 @@ export const useAuthStore = defineStore('auth', {
     // sign in an existing patient
     async loginPatient({ email, password }) {
       this.loading = true
+      this.isLoggingIn = true
+
       try {
         const credential = await loginWithEmail(email, password)
         const uid = credential.user.uid
 
         const patient = await getPatient(uid)
 
-        this.user = credential.user
-        this.patient = patient
-        this.clinic = null
-        this.role = 'patient'
+        if (!patient) {
+          await logout()
+          this.user = null
+          this.patient = null
+          this.clinic = null
+          this.role = null
+          throw new Error('No patient account found for this email.')
+        } else {
+          this.user = credential.user
+          this.patient = patient
+          this.clinic = null
+          this.role = 'patient'
+        }
       } catch (err) {
         console.error('[AuthStore] loginPatient error:', err)
         throw err
       } finally {
         this.loading = false
+        this.isLoggingIn = false
       }
     },
 
@@ -170,15 +185,25 @@ export const useAuthStore = defineStore('auth', {
 
         const clinic = await getClinic(uid)
 
-        this.user = credential.user
-        this.clinic = clinic
-        this.patient = null
-        this.role = 'clinic'
+        if (!clinic) {
+          await logout()
+          this.user = null
+          this.clinic = null
+          this.patient = null
+          this.role = null
+          throw new Error('No clinic account found for this email.')
+        } else {
+          this.user = credential.user
+          this.clinic = clinic
+          this.patient = null
+          this.role = 'clinic'
+        }
       } catch (err) {
         console.error('[AuthStore] loginClinic error:', err)
         throw err
       } finally {
         this.loading = false
+        this.isLoggingIn = false
       }
     },
 
