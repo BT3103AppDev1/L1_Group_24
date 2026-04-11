@@ -441,9 +441,19 @@ export function subscribeToClinicServiceTickets(clinicId, serviceId, callback) {
         where('serviceId', '==', serviceId)
     )
     return onSnapshot(q, (snap) => {
+        const today = new Date()
         const tickets = snap.docs
             .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((t) => ['waiting', 'serving'].includes(t.status))
+            .filter((t) => {
+                if (['waiting', 'serving'].includes(t.status)) return true
+                if (t.status === 'completed') {
+                    const d = t.updatedAt?.toDate?.() || new Date(0)
+                    return d.getDate() === today.getDate() && 
+                           d.getMonth() === today.getMonth() && 
+                           d.getFullYear() === today.getFullYear()
+                }
+                return false
+            })
             .sort((a, b) => {
                 const aTime = a.joinedAt?.toMillis?.() ?? 0
                 const bTime = b.joinedAt?.toMillis?.() ?? 0
