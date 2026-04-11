@@ -7,7 +7,7 @@
 import NavBar from '@/components/shared/NavBar.vue'
 import { computed, onMounted } from 'vue'
 // import { seedServices } from '@/firebase/firestore.js'
-import { runSeed } from './firebase/seed.js'
+// import { runSeed } from './firebase/seed.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { useClinicStore } from '@/stores/useClinicStore.js'
 import { useRouter } from 'vue-router'
