@@ -1,6 +1,5 @@
 <template>
   <div class="home">
-    <br> <!-- ADDED FOR STYLING, DELETE WHEN OTHER COMPONENTS HAVE BEEN CREATED AND ADDED TO App.vue -->
 
     <!-- Hero section to introduce platform -->
     <section class="hero-panel">
