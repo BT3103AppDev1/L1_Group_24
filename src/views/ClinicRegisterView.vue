@@ -9,11 +9,11 @@
                     :error="errors.name" required />
                 <AppInput v-model="form.contactNumber" label="Contact Number" placeholder="e.g. 62345678"
                     :error="errors.contactNumber" required />
-                <AppInput v-model="form.email" label="Email Address" type="email" placeholder="clinic@email.com"
+                <AppInput v-model="form.email" label="Email Address" type="email" placeholder="e.g. clinic@email.com"
                     :error="errors.email" required />
-                <AppInput v-model="form.address" label="Address" placeholder="e.g. 123 Orchard Rd"
+                <AppInput v-model="form.address" label="Residential Address" placeholder="e.g. 123 Orchard Rd"
                     :error="errors.address" required />
-                <AppInput v-model="form.postalCode" label="Postal Code" placeholder="e.g. 123456"
+                <AppInput v-model="form.postalCode" label="Residential Postal Code" placeholder="e.g. 123456"
                     :error="errors.postalCode" required />
                 <AppSelect v-model="form.district" label="District" :options="districtOptions" :error="errors.district"
                     required />
@@ -61,8 +61,9 @@
                     <p v-if="errors.operatingHours" class="field-error">{{ errors.operatingHours }}</p>
                 </div>
 
-                <AppInputPassword v-model="form.password" label="Password" :error="errors.password" required />
-                <AppInputPassword v-model="form.confirmPassword" label="Confirm Password"
+                <AppInputPassword v-model="form.password" label="Password" placeholder="Enter a password"
+                    :error="errors.password" required />
+                <AppInputPassword v-model="form.confirmPassword" label="Confirm Password" placeholder="Re-enter your password"
                     :error="errors.confirmPassword" required />
 
                 <AlertBanner v-if="serverError" type="error" :message="serverError" dismissible
@@ -161,7 +162,7 @@ function validate() {
     else if (!/^[36]\d{7}$/.test(form.contactNumber)) { errors.contactNumber = 'Enter a valid 8-digit Singapore phone number'; ok = false }
     if (!form.email.trim()) { errors.email = 'Email is required'; ok = false }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { errors.email = 'Enter a valid email'; ok = false }
-    if (!form.address.trim()) { errors.address = 'Address is required'; ok = false }
+    if (!form.address.trim()) { errors.address = 'Residential address is required'; ok = false }
     if (!form.postalCode.trim()) { errors.postalCode = 'Postal code is required'; ok = false }
     else if (!/^\d{6}$/.test(form.postalCode)) { errors.postalCode = 'Postal code must be 6 digits'; ok = false }
     if (!form.district) { errors.district = 'District is required'; ok = false }
@@ -181,7 +182,7 @@ function validate() {
                 break
             }
             if (h.start >= h.end) {
-                errors.operatingHours = `${d.label}: closing time must be after opening time`
+                errors.operatingHours = `${d.label}: Closing time must be after opening time`
                 ok = false
                 break
             }
@@ -190,7 +191,7 @@ function validate() {
 
     const pwRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
     if (!form.password) { errors.password = 'Password is required'; ok = false }
-    else if (!pwRe.test(form.password)) { errors.password = 'Min 8 chars with uppercase, lowercase, number and special character'; ok = false }
+    else if (!pwRe.test(form.password)) { errors.password = 'Minimum 8 characters with at least one uppercase, lowercase, number and special character'; ok = false }
     if (!form.confirmPassword) { errors.confirmPassword = 'Please confirm your password'; ok = false }
     else if (form.password !== form.confirmPassword) { errors.confirmPassword = 'Passwords do not match'; ok = false }
 
@@ -354,11 +355,6 @@ async function submit() {
     gap: 1rem;
     flex-wrap: wrap;
     padding: .4rem .25rem;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.day-row:last-child {
-    border-bottom: none;
 }
 
 .day-toggle {

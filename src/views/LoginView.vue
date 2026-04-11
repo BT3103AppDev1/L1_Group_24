@@ -11,7 +11,7 @@
       <h2 class="form-heading">Welcome back</h2>
       <p class="form-sub">Log in to your ClinicQ account.</p>
       <form @submit.prevent="submitPatientLogin" class="auth-form" novalidate>
-        <AppInput v-model="pl.email" label="Email Address" type="email" placeholder="you@email.com"
+        <AppInput v-model="pl.email" label="Email Address" type="email" placeholder="name@email.com"
           :error="pl.errors.email" required />
         <AppInputPassword v-model="pl.password" label="Password" :error="pl.errors.password" required />
         <div class="forgot-row">
@@ -21,13 +21,13 @@
           @dismiss="pl.serverError = ''" />
         <AppButton type="submit" variant="primary" block :loading="pl.loading">Log In</AppButton>
       </form>
-      <p class="auth-footer">Don't have an account? <RouterLink to="/register">Register</RouterLink>
+      <p class="auth-footer">Don't have an account? <RouterLink to="/register">Register here</RouterLink>
       </p>
     </template>
 
     <!-- ── Clinic Login ── -->
     <template v-else>
-      <h2 class="form-heading">Clinic Login</h2>
+      <h2 class="form-heading">Welcome back</h2>
       <p class="form-sub">Log in with your clinic email and password.</p>
       <form @submit.prevent="submitClinicLogin" class="auth-form" novalidate>
         <AppInput v-model="cl.email" label="Email Address" type="email" placeholder="clinic@email.com"
