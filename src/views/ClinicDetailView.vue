@@ -228,7 +228,7 @@ async function handleJoinQueue() {
 
 .card {
   background: white;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid #dbeafe;
   box-shadow: 0 10px 22px rgba(59, 130, 246, 0.08);
   padding: 1.2rem;
@@ -259,7 +259,9 @@ async function handleJoinQueue() {
 }
 
 .services-section h2 {
-  margin: 0 0 0.7rem;
+  font-size: 1.25rem; 
+  font-weight: 700; 
+  margin: 0 0 0.85rem;
   color: #1e3a8a;
 }
 

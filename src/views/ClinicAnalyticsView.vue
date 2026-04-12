@@ -41,13 +41,6 @@
           </AppCard>
         </section>
 
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Peak Hour</p>
-          <p class="metric-value text-md">{{ todayPeakHourLabel }}</p>
-          <p class="metric-meta">Highest queue volume</p>
-        </AppCard>
-      </section>
-
       <section class="small-metrics-grid mb-8">
         <AppCard class="metric-card small-metric-card completed-tint" flat>
           <p class="metric-label">Completed</p>

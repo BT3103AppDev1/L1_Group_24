@@ -228,7 +228,7 @@ function viewDetail(clinicId) {
 
 .card {
   background: white;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid #e0edfc;
   box-shadow: 0 8px 20px rgba(28, 94, 212, 0.08);
   padding: 1rem;
