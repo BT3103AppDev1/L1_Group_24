@@ -3,7 +3,11 @@
 -->
 <template>
   <PageLayout title="Dashboard">
-    <div class="dashboard">
+    <div v-if="!authStore.initialized || queueStore.loading" class="spinner-center">
+      <AppSpinner />
+    </div>
+
+    <div v-else class="dashboard">
 
       <!-- Active Queue Card: displayed when the patient is currently in a queue -->
       <template v-if="queueStore.isInQueue">
@@ -148,6 +152,13 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
 }
 
 .queue-card {

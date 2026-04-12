@@ -5,15 +5,17 @@
 
 <script setup>
 import NavBar from '@/components/shared/NavBar.vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 // import { seedServices } from '@/firebase/firestore.js'
 // import { runSeed } from './firebase/seed.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { useClinicStore } from '@/stores/useClinicStore.js'
+import { useQueueStore } from '@/stores/useQueueStore.js'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
+const queueStore = useQueueStore()
 const router = useRouter()
 
 // render correct NavBar for different users
@@ -43,5 +45,18 @@ onMounted(async () => {
   // pre-load services and clinic list (public data)
   clinicStore.fetchServices()
   clinicStore.fetchAllClinics()
+
+  // Wait for auth to finish initializing, then restore active ticket
+  const stop = watch(
+    () => authStore.initialized,
+    async (initialized) => {
+      if (!initialized) return
+      stop() // only run once
+      if (authStore.isPatient && authStore.patientId) {
+        await queueStore.checkActiveTicket(authStore.patientId)
+      }
+    },
+    { immediate: true }
+  )
 })
 </script>
