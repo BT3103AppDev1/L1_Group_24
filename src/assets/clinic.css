@@ -43,7 +43,7 @@
 }
 
 .metric-orange::before {
-    background: var(--color-accent);
+    background: var(--color-text-orange);
 }
 
 /* changed from orange */
@@ -106,8 +106,8 @@
 }
 
 .metric-orange .metric-card-icon {
-    background-color: var(--color-pastel-cyan);
-    color: var(--color-text-cyan);
+    background-color: var(--color-pastel-orange);
+    color: var(--color-text-orange);
 }
 
 
