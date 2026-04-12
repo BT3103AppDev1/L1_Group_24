@@ -2,7 +2,9 @@
   <div class="clinic-detail page-container">
     <router-link to="/clinics" class="back-btn">← Back to Clinic Directory</router-link>
 
-    <AppSpinner v-if="pageLoading" />
+    <div v-if="pageLoading" class="spinner-center">
+      <AppSpinner />
+    </div>
 
     <div v-else-if="!clinic" class="empty-state card">
       <h2>Clinic not found</h2>
@@ -203,6 +205,13 @@ async function handleJoinQueue() {
   padding: 1rem;
 }
 
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+}
+
 .back-btn {
   display: inline-block;
   margin-bottom: 1rem;
@@ -225,7 +234,7 @@ async function handleJoinQueue() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .clinic-header h1 {
@@ -240,7 +249,7 @@ async function handleJoinQueue() {
 }
 
 .services-section {
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .services-section h2 {
@@ -280,6 +289,7 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  padding: 0.1rem;
 }
 
 .service-info strong {
@@ -309,6 +319,7 @@ ul {
 
 .queue-cta {
   text-align: center;
+  padding: 1.75rem;
 }
 
 .status-note {

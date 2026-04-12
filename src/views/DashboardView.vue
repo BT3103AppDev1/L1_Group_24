@@ -2,55 +2,55 @@
   Patient Dashboard — shows active queue ticket (if any) and recent consultation records.
 -->
 <template>
-  <div class="dashboard">
+  <PageLayout title="Dashboard">
+    <div class="dashboard">
 
-    <!-- Active Queue Card: displayed when the patient is currently in a queue -->
-    <template v-if="queueStore.isInQueue">
-      <AppCard class="queue-card">
-        <div class="queue-header">
-          <span class="queue-badge" :class="ticketStatusClass">{{ ticketStatusLabel }}</span>
-          <span class="queue-clinic">{{ clinicName }}</span>
-        </div>
+      <!-- Active Queue Card: displayed when the patient is currently in a queue -->
+      <template v-if="queueStore.isInQueue">
+        <AppCard class="queue-card">
+          <div class="queue-header">
+            <span class="queue-badge" :class="ticketStatusClass">{{ ticketStatusLabel }}</span>
+            <span class="queue-clinic">{{ clinicName }}</span>
+          </div>
 
-        <div class="ticket-number">{{ activeTicket.ticketNumber }}</div>
-        <p class="service-name">{{ serviceName }}</p>
+          <div class="ticket-number">{{ activeTicket.ticketNumber }}</div>
+          <p class="service-name">{{ serviceName }}</p>
 
-        <AlertBanner v-if="activeTicket.status === 'serving'" type="info"
-          message="It's your turn! Please proceed to the counter." />
-        <AlertBanner v-if="activeTicket.status === 'completed'" type="success"
-          message="Consultation done. Please proceed to payment." />
+          <AlertBanner v-if="activeTicket.status === 'serving'" type="info"
+            message="It's your turn! Please proceed to the counter." />
+          <AlertBanner v-if="activeTicket.status === 'completed'" type="success"
+            message="Consultation done. Please proceed to payment." />
 
-        <div class="queue-actions">
-          <AppButton v-if="activeTicket.status === 'waiting'" variant="danger" block @click="leaveQueue">Leave Queue
-          </AppButton>
-          <AppButton v-if="activeTicket.status === 'completed'" variant="primary" block @click="goToRecords">View
-            Records</AppButton>
-        </div>
-      </AppCard>
-    </template>
-
-    <!-- No Queue State: shown when the patient is not in any queue -->
-    <template v-else>
-      <AppCard class="no-queue-card">
-        <AppEmptyState icon="🏥" title="Not in any queue"
-          description="Browse nearby clinics and join a queue to get started." />
-        <AppButton variant="primary" block @click="$router.push('/clinics')">
-          Find a Clinic
-        </AppButton>
-      </AppCard>
-    </template>
-
-    <!-- Recent Records: lists the patient's past consultations (mock data for now) -->
-    <section class="section">
-      <h3 class="section-title">Recent Consultations</h3>
-      <AppSpinner v-if="loadingRecords" />
-      <template v-else-if="recentRecords.length">
-        <RecordCard v-for="rec in recentRecords" :key="rec.id" :record="rec" />
+          <div class="queue-actions">
+            <AppButton v-if="activeTicket.status === 'waiting'" variant="danger" block @click="leaveQueue">Leave Queue</AppButton>
+            <AppButton v-if="activeTicket.status === 'completed'" variant="primary" block @click="goToRecords">View Records</AppButton>
+          </div>
+        </AppCard>
       </template>
-      <AppEmptyState v-else icon="📋" title="No records yet"
-        description="Your consultation history will appear here." />
-    </section>
-  </div>
+
+      <!-- No Queue State: shown when the patient is not in any queue -->
+      <template v-else>
+        <AppCard class="no-queue-card">
+          <AppEmptyState icon="🏥" title="Not in any queue"
+            description="Browse nearby clinics and join a queue to get started." />
+          <AppButton variant="primary" block @click="$router.push('/clinics')">
+            Find a Clinic
+          </AppButton>
+        </AppCard>
+      </template>
+
+      <!-- Recent Records: lists the patient's past consultations (mock data for now) -->
+      <section class="section">
+        <h3 class="section-title">Recent Consultations</h3>
+        <AppSpinner v-if="loadingRecords" />
+        <template v-else-if="recentRecords.length">
+          <RecordCard v-for="rec in recentRecords" :key="rec.id" :record="rec" />
+        </template>
+        <AppEmptyState v-else icon="📋" title="No records yet"
+          description="Your consultation history will appear here." />
+      </section>
+    </div>
+  </PageLayout>
 </template>
 
 <script setup>
@@ -59,6 +59,7 @@ import { useRouter } from 'vue-router'
 import { useQueueStore } from '@/stores/useQueueStore.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { getPatientConsultations } from '@/firebase/firestore.js'
+import PageLayout from '@/components/layout/PageLayout.vue'
 import AppCard from '@/components/base/AppCard.vue'
 import AppButton from '@/components/base/AppButton.vue'
 import AppSpinner from '@/components/base/AppSpinner.vue'
@@ -106,6 +107,12 @@ async function loadRecords() {
   try {
     const records = await getPatientConsultations(authStore.patientId)
     recentRecords.value = records
+      .sort((a, b) => {
+      const dateA = a.consultationDate?.toDate?.() ?? new Date(a.consultationDate)
+      const dateB = b.consultationDate?.toDate?.() ?? new Date(b.consultationDate)
+      return dateB - dateA
+    })
+      .slice(0, 3)
   } catch (e) {
     console.error('Failed to load records:', e)
   } finally {
@@ -190,14 +197,15 @@ onMounted(async () => {
 .section {
   display: flex;
   flex-direction: column;
-  gap: .75rem;
+  gap: 1rem;
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
-  margin: 0;
+  margin: 0.5rem;
+  margin-bottom: 0;
 }
 
 .badge-waiting {
