@@ -164,7 +164,7 @@ watch(
 .sec-title    { font-size: 1rem; font-weight: 700; color: #1f2937; margin: 0; }
 
 .hours-row   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid #f3f4f6; }
-.day-label   { width: 3rem; font-size: .875rem; font-weight: 600; color: #374151; flex-shrink: 0; }
+.day-label   { width: 5.5rem; font-size: .875rem; font-weight: 600; color: #374151; flex-shrink: 0; }
 .open-toggle { display: flex; align-items: center; gap: .35rem; font-size: .8rem; color: #6b7280; cursor: pointer; flex-shrink: 0; }
 .time-input  { padding: .35rem .5rem; border: 1.5px solid #d1d5db; border-radius: 6px; font-size: .8rem; color: #1f2937; }
 .sep         { font-size: .8rem; color: #6b7280; }
