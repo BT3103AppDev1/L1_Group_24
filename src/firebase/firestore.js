@@ -528,6 +528,45 @@ export function subscribeToClinicDailyQueueHistory(clinicId, callback, onError, 
 }
 
 /**
+ * Real-time watcher for todays outcome counts: completed, no-show, cancelled.
+ * Counts tickets that changed status today and groups them into a combined total.
+ * @param {string} clinicId
+ * @param {function} callback
+ * @param {function} [onError]
+ * @returns {function}
+ */
+export function subscribeToClinicOutcomeCounts(clinicId, callback, onError) {
+  const q = query(collection(db, 'queueTickets'), where('clinicId', '==', clinicId))
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const today = startOfDay(new Date())
+      const totals = { completed: 0, noShow: 0, cancelled: 0, combined: 0 }
+
+      snap.docs.forEach((ticketDoc) => {
+        const ticket = ticketDoc.data()
+        const updatedAt = ticket.updatedAt?.toDate?.()
+        if (!(updatedAt instanceof Date) || Number.isNaN(updatedAt.getTime())) return
+
+        if (startOfDay(updatedAt).getTime() !== today.getTime()) return
+
+        if (ticket.status === 'completed') totals.completed += 1
+        if (ticket.status === 'no-show') totals.noShow += 1
+        if (ticket.status === 'cancelled') totals.cancelled += 1
+      })
+
+      totals.combined = totals.completed + totals.noShow + totals.cancelled
+      callback(totals)
+    },
+    (err) => {
+      console.error('[Firestore] subscribeToClinicOutcomeCounts error:', err)
+      if (onError) onError(err)
+    },
+  )
+}
+
+/**
  * Real-time watcher for a clinic's hourly queue volume across the last N days.
  * Counts each ticket once by the hour it joined the queue.
  * @param {string} clinicId

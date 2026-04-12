@@ -20,7 +20,7 @@
         <p class="section-desc">Real-time overview of your queue activity today.</p>
       </div>
 
-      <section class="stats-grid mb-8">
+      <section class="stats-grid mb-4">
         <AppCard class="metric-card" flat>
           <p class="metric-label">Queue Joins</p>
           <p class="metric-value">{{ todayJoins }}</p>
@@ -37,6 +37,24 @@
           <p class="metric-label">Peak Hour</p>
           <p class="metric-value text-md">{{ todayPeakHourLabel }}</p>
           <p class="metric-meta">Highest queue volume</p>
+        </AppCard>
+      </section>
+
+      <section class="small-metrics-grid mb-8">
+        <AppCard class="metric-card small-metric-card completed-tint" flat>
+          <p class="metric-label">Completed</p>
+          <p class="metric-value">{{ todayCompleted }}</p>
+          <p class="metric-meta">Completed consultations today</p>
+        </AppCard>
+        <AppCard class="metric-card small-metric-card no-show-tint" flat>
+          <p class="metric-label">No Shows</p>
+          <p class="metric-value">{{ todayNoShow }}</p>
+          <p class="metric-meta">No shows today</p>
+        </AppCard>
+        <AppCard class="metric-card small-metric-card cancelled-tint" flat>
+          <p class="metric-label">Cancellations</p>
+          <p class="metric-value">{{ todayCancelled }}</p>
+          <p class="metric-meta">Cancellations today</p>
         </AppCard>
       </section>
 
@@ -103,7 +121,7 @@
       </div>
       <template v-else>
         <!-- Past Stats Cards -->
-        <section class="stats-grid mb-8">
+        <section class="stats-grid mb-4">
           <AppCard class="metric-card green-tint" flat>
             <p class="metric-label">Average Joins</p>
             <p class="metric-value">{{ pastAverageJoins }}</p>
@@ -120,6 +138,24 @@
             <p class="metric-label">Peak Hour</p>
             <p class="metric-value text-md">{{ pastPeakHourLabel }}</p>
             <p class="metric-meta">Highest average volume</p>
+          </AppCard>
+        </section>
+
+        <section class="small-metrics-grid mb-8">
+          <AppCard class="metric-card small-metric-card completed-tint" flat>
+            <p class="metric-label">Avg Completed</p>
+            <p class="metric-value">{{ pastAverageCompleted }}</p>
+            <p class="metric-meta">Completed per day</p>
+          </AppCard>
+          <AppCard class="metric-card small-metric-card no-show-tint" flat>
+            <p class="metric-label">Avg No Shows</p>
+            <p class="metric-value">{{ pastAverageNoShow }}</p>
+            <p class="metric-meta">No shows per day</p>
+          </AppCard>
+          <AppCard class="metric-card small-metric-card cancelled-tint" flat>
+            <p class="metric-label">Avg Cancellations</p>
+            <p class="metric-value">{{ pastAverageCancelled }}</p>
+            <p class="metric-meta">Cancellations per day</p>
           </AppCard>
         </section>
 
@@ -181,6 +217,7 @@ import AlertBanner from '@/components/shared/AlertBanner.vue'
 import {
   subscribeToClinicDailyQueueHistory,
   subscribeToClinicHourlyQueueVolume,
+  subscribeToClinicOutcomeCounts,
   getPastAnalyticsTickets,
 } from '@/firebase/firestore.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
@@ -220,11 +257,13 @@ const loading = ref(true)
 const loadError = ref('')
 let unsubscribeHistory = null
 let unsubscribeHourlyHistory = null
+let unsubscribeOutcomeTotals = null
 
 // Real-time (Today) state
 const history = ref([])
 const averageWaitTodayMinutes = ref(0)
 const hourlyHistory = ref([])
+const dailyOutcomeTotals = ref({ completed: 0, noShow: 0, cancelled: 0, combined: 0 })
 
 // Past Analytics state
 const pastMode = ref('week')
@@ -308,6 +347,28 @@ const todayPeakHourLabel = computed(() => {
   const peak = todayPeakHourObj.value
   if (!peak) return '--'
   return `${formatHourLabel(peak.hour)} (${peak.count})`
+})
+
+const todayCompleted = computed(() => dailyOutcomeTotals.value.completed)
+const todayNoShow = computed(() => dailyOutcomeTotals.value.noShow)
+const todayCancelled = computed(() => dailyOutcomeTotals.value.cancelled)
+
+const pastAverageCompleted = computed(() => {
+  if (!pastTickets.value.length) return 0
+  const total = pastTickets.value.filter((t) => t.status === 'completed').length
+  return pastPeriodDays.value ? (total / pastPeriodDays.value).toFixed(1) : 0
+})
+
+const pastAverageNoShow = computed(() => {
+  if (!pastTickets.value.length) return 0
+  const total = pastTickets.value.filter((t) => t.status === 'no-show').length
+  return pastPeriodDays.value ? (total / pastPeriodDays.value).toFixed(1) : 0
+})
+
+const pastAverageCancelled = computed(() => {
+  if (!pastTickets.value.length) return 0
+  const total = pastTickets.value.filter((t) => t.status === 'cancelled').length
+  return pastPeriodDays.value ? (total / pastPeriodDays.value).toFixed(1) : 0
 })
 
 const todayLineChartData = computed(() => {
@@ -553,6 +614,14 @@ function beginSubscriptions() {
     },
     () => {}, // error handled above
   )
+
+  unsubscribeOutcomeTotals = subscribeToClinicOutcomeCounts(
+    authStore.clinicId,
+    (totals) => {
+      dailyOutcomeTotals.value = totals
+    },
+    () => {},
+  )
 }
 
 onMounted(async () => {
@@ -585,6 +654,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (unsubscribeHistory) unsubscribeHistory()
   if (unsubscribeHourlyHistory) unsubscribeHourlyHistory()
+  if (unsubscribeOutcomeTotals) unsubscribeOutcomeTotals()
 })
 </script>
 
@@ -712,7 +782,7 @@ onUnmounted(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
 }
 
@@ -723,8 +793,54 @@ onUnmounted(() => {
   padding: 1.5rem;
 }
 
+.metric-card.small-metric-card {
+  padding: 1rem;
+}
+
+.small-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card.small-metric-card .metric-label {
+  font-size: 0.75rem;
+}
+
+.metric-card.small-metric-card .metric-value {
+  font-size: 2rem;
+}
+
+.metric-card.small-metric-card .metric-meta {
+  font-size: 0.8rem;
+}
+
 .metric-card.green-tint .metric-value {
   color: #10b981;
+}
+
+.metric-card.completed-tint {
+  background-color: rgba(16, 185, 129, 0.08);
+}
+
+.metric-card.completed-tint .metric-value {
+  color: #10b981;
+}
+
+.metric-card.no-show-tint {
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.metric-card.no-show-tint .metric-value {
+  color: #b91c1c;
+}
+
+.metric-card.cancelled-tint {
+  background-color: #f1f5f9;
+}
+
+.metric-card.cancelled-tint .metric-value {
+  color: #64748b;
 }
 
 .metric-label {
