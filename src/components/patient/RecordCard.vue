@@ -18,21 +18,22 @@
 
         <Transition name="expand">
             <div v-if="expanded" class="record-body">
-                <div v-if="record.diagnosis" class="field">
+                <div class="field">
                     <label>Diagnosis</label>
-                    <p class="primary-text">{{ record.diagnosis }}</p>
+                    <p>{{ record.diagnosis || 'No diagnosis given'}}</p>
                 </div>
-                <div v-if="record.notes" class="field">
+                <div class="field">
                     <label>Doctor's Notes</label>
-                    <p>{{ record.notes }}</p>
+                    <p>{{ record.notes || 'No notes recorded'}}</p>
                 </div>
-                <div v-if="record.instructions" class="field">
+                <div class="field">
                     <label>Instructions</label>
-                    <p>{{ record.instructions }}</p>
+                    <p>{{ record.instructions || 'No instructions given' }}</p>
                 </div>
-                <div v-if="record.medications?.length" class="field">
+                <div class="field">
                     <label>Medications Prescribed</label>
-                    <div class="med-list">
+                    <p v-if="!record.medications?.length" class="muted">No medications prescribed</p>
+                    <div v-else class="med-list">
                         <div v-for="(med, i) in record.medications" :key="i" class="med-item">
                             <p class="med-name">{{ med.name }}</p>
                             <p v-if="med.dosage" class="med-detail"><b>Dosage:</b> {{ med.dosage }}</p>
@@ -85,8 +86,15 @@ function formatDate(ts) {
     cursor: pointer;
 }
 
+.record-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .record-date {
     display: inline-flex;
+    align-self: flex-start;
     margin-bottom: 0.35rem;
     padding: 0.26rem 0.65rem;
     border-radius: var(--radius-full);
@@ -169,24 +177,20 @@ function formatDate(ts) {
 
 .field p {
     margin: 0;
-    font-size: 0.94rem;
+    font-size: 0.9rem;
     color: var(--color-text-main);
     line-height: 1.65;
-}
-
-.primary-text {
-    color: var(--color-primary-dark);
-    font-weight: 700;
 }
 
 .med-list {
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
+    margin-top: 0.5rem;
 }
 
 .med-item {
-    padding: 0.9rem 1rem;
+    padding: 1rem 1.25rem;
     border-radius: var(--radius-md);
     background: rgba(248, 250, 252, 0.96);
     border: 1px solid rgba(226, 232, 240, 0.8);

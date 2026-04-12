@@ -152,4 +152,9 @@ const inputId = computed(() => props.id || `app-input-pw-${Math.random().toStrin
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+.form-control--error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
 </style>

@@ -148,4 +148,9 @@ const normalizedOptions = computed(() =>
   display: flex;
   align-items: center;
 }
+
+.form-control--error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
 </style>

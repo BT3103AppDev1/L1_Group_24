@@ -13,7 +13,7 @@
       @change="handleChange"
     />
     <span class="app-checkbox__box" aria-hidden="true">
-      <span v-if="isChecked">x</span>
+      <span v-if="isChecked">✓</span>
     </span>
     <span v-if="label" class="app-checkbox__label">{{ label }}</span>
   </label>

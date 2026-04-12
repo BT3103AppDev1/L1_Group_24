@@ -2,7 +2,9 @@
     <PageLayout title="Consultation Records">
         <AppSpinner v-if="loading" />
         <template v-else-if="records.length">
-            <RecordCard v-for="rec in records" :key="rec.id" :record="rec" />
+            <div class="records-list">
+                <RecordCard v-for="rec in records" :key="rec.id" :record="rec" />
+            </div>
         </template>
         <AppEmptyState v-else icon="📋" title="No records yet"
             description="Your past consultations will appear here after your visits." />
@@ -42,3 +44,11 @@ onMounted(async () => {
     }
 })
 </script>
+
+<style scoped>
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+</style>
