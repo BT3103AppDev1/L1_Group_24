@@ -141,11 +141,11 @@ async function save() {
   saved.value = false
   try {
     await updateClinic(authStore.clinicId, {
-      name:          form.name.trim(),
-      address:       form.address.trim(),
-      postalCode:    form.postalCode.trim(),
-      district:      form.district,
-      openingHours:  form.hours,
+      name:            form.name.trim(),
+      address:         form.address.trim(),
+      postalCode:      form.postalCode.trim(),
+      district:        form.district,
+      operatingHours:  form.hours,
     })
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
@@ -174,10 +174,11 @@ watch(
       form.address       = c.address       || ''
       form.postalCode    = c.postalCode    || ''
       form.district      = c.district      || ''
-      if (c.openingHours) {
+      const storedHours = c.operatingHours || c.openingHours
+      if (storedHours) {
         DAYS.forEach(d => {
-          if (c.openingHours[d.value]) {
-            form.hours[d.value] = { ...c.openingHours[d.value] }
+          if (storedHours[d.value]) {
+            form.hours[d.value] = { ...storedHours[d.value] }
           }
         })
       }

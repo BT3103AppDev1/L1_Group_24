@@ -229,7 +229,7 @@ async function submit() {
             password: form.password,
         })
         success.value = true
-        setTimeout(() => router.push('/clinic/setup'), 1500)
+        setTimeout(() => router.push('/clinic/dashboard'), 1500)
     } catch (e) {
         serverError.value = e.code === 'auth/email-already-in-use'
             ? 'This email address is already registered.'

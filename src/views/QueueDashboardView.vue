@@ -115,7 +115,7 @@
         </div>
         <div class="d-row">
           <span>Status</span>
-          <span>{{ detailTicket.status }}</span>
+          <span>{{ statusLabel(detailTicket.status) }}</span>
         </div>
         <div class="d-row">
           <span>Joined</span>
@@ -247,6 +247,18 @@ function refreshQueue() {
 
 function openDetail(ticket) {
   detailTicket.value = ticket
+}
+
+const labels = {
+  waiting: 'Waiting',
+  serving: 'Serving',
+  completed: 'Completed',
+  'no-show': 'No Show',
+  cancelled: 'Cancelled'
+}
+
+function statusLabel(status) {
+  return labels[status] || status
 }
 
 async function toggleClinicStatus(open) {
