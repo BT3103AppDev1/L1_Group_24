@@ -13,6 +13,7 @@ import {
   createClinic,
   getClinic,
 } from '@/firebase/firestore.js'
+import { geocodePostalCode } from '@/utils/geo.js'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -154,6 +155,14 @@ export const useAuthStore = defineStore('auth', {
         const credential = await registerWithEmail(email, password)
         const uid = credential.user.uid
 
+        // Geocode postal code to lat/lng so the directory can show real distances
+        let coords = null
+        try {
+          coords = await geocodePostalCode(postalCode)
+        } catch (e) {
+          console.warn('[AuthStore] geocode failed, clinic saved without coords:', e)
+        }
+
         await createClinic(uid, {
           clinicName,
           district,
@@ -163,6 +172,7 @@ export const useAuthStore = defineStore('auth', {
           email,
           operatingHours: operatingHours || {},
           services: services || [],
+          ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
         })
 
         const clinic = await getClinic(uid)

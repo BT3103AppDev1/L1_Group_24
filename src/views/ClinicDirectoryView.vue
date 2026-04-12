@@ -34,14 +34,15 @@
     </section>
 
     <section class="clinic-list">
-      <p v-if="filteredClinics.length === 0" class="no-results">No clinics found.</p>
+      <p v-if="loading" class="no-results">Loading clinics...</p>
+      <p v-else-if="filteredClinics.length === 0" class="no-results">No clinics found.</p>
       <article v-for="clinic in filteredClinics" :key="clinic.id" class="clinic-card card">
         <div class="clinic-card-top">
           <div>
             <h2>{{ clinic.clinicName }}</h2>
             <p class="clinic-meta">
               {{ clinic.district }} · {{ formatTodayHours(clinic.operatingHours, clinic) }} ·
-              {{ Number(clinic.distance || 0).toFixed(1) }} km
+              {{ clinic.distance != null ? `${clinic.distance.toFixed(1)} km` : '— km' }}
             </p>
           </div>
           <AppBadge :variant="isClinicOpen(clinic) ? 'open' : 'closed'">
@@ -66,7 +67,7 @@
 
         <div class="clinic-bottom">
           <span class="wait">
-            Est. wait: {{ clinic.averageWaitTime ? `~${clinic.averageWaitTime} min` : 'No wait' }}
+            Est. wait: {{ clinic.waitTime > 0 ? `~${clinic.waitTime} min` : 'No wait' }}
           </span>
           <button class="btn btn-primary" type="button" @click="viewDetail(clinic.id)">
             View details
@@ -81,7 +82,8 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppBadge from '@/components/base/AppBadge.vue'
-import { subscribeToAllClinics, getAllServices } from '@/firebase/firestore'
+import { subscribeToAllClinics, getAllServices, getClinicServices } from '@/firebase/firestore'
+import { geocodePostalCode, getUserLocation, haversineKm } from '@/utils/geo.js'
 
 const router = useRouter()
 
@@ -92,25 +94,76 @@ const openNow = ref(false)
 
 const servicesData = ref([])
 const clinics = ref([])
+const userLocation = ref(null)
+const loading = ref(true)
 let clinicsUnsubscribe = null
 
 onMounted(async () => {
   try {
     servicesData.value = await getAllServices()
+
+    // Best-effort: ask for user location (null if denied/unsupported)
+    userLocation.value = await getUserLocation()
+
     clinicsUnsubscribe = subscribeToAllClinics((data) => {
+      // Initial population — distance and waitTime get filled in asynchronously
       clinics.value = data.map((c) => ({
         ...c,
         clinicName: c.clinicName || 'Unnamed Clinic',
         district: c.district || 'Unknown District',
         services: c.services || [],
         operatingHours: c.operatingHours || {},
-        distance: c.distance || Math.random() * 5 + 1,
+        distance: null,
+        waitTime: 0,
       }))
+      loading.value = false
+      enrichClinics(data)
     })
   } catch (err) {
     console.error('Error fetching data:', err)
+    loading.value = false
   }
 })
+
+// Resolves each clinic's real distance and wait time and writes it back into the reactive list
+async function enrichClinics(data) {
+  for (const c of data) {
+    // Prefer stored lat/lng; fall back to geocoding the postal code
+    let coords = c.lat != null && c.lng != null ? { lat: c.lat, lng: c.lng } : null
+    if (!coords && c.postalCode) {
+      coords = await geocodePostalCode(c.postalCode)
+    }
+
+    // Real distance only if we know both ends
+    let distance = null
+    if (userLocation.value && coords) {
+      distance = haversineKm(
+        userLocation.value.lat,
+        userLocation.value.lng,
+        coords.lat,
+        coords.lng
+      )
+    }
+
+    // Longest live wait across this clinic's queues (activeCount * avgDuration)
+    let waitTime = 0
+    try {
+      const queues = await getClinicServices(c.id)
+      for (const q of queues) {
+        const w = (q.activeCount || 0) * (q.avgDuration || 15)
+        if (w > waitTime) waitTime = w
+      }
+    } catch (e) {
+      console.warn('[ClinicDirectory] failed to load queues for', c.id, e)
+    }
+
+    // Merge enriched fields back in-place
+    const idx = clinics.value.findIndex((x) => x.id === c.id)
+    if (idx >= 0) {
+      clinics.value[idx] = { ...clinics.value[idx], distance, waitTime }
+    }
+  }
+}
 
 onUnmounted(() => {
   if (clinicsUnsubscribe) clinicsUnsubscribe()

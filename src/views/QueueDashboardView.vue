@@ -17,21 +17,24 @@
               :class="{ active: s.id === activeServiceId }"
               @click="selectServiceLocal(s.id)"
             >
-              {{ s.serviceName }}
+              <span>{{ s.serviceName }}</span>
+              <span v-if="waitingByService[s.id]" class="waiting-badge">
+                {{ waitingByService[s.id] }}
+              </span>
             </div>
           </div>
         </div>
 
         <AppCard class="status-card">
           <span class="status-label">Clinic Status:</span>
-          <AppBadge :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
+          <AppBadge class="status-badge" :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
             {{ authStore.clinic?.isOpen ? 'OPEN' : 'CLOSED' }}
           </AppBadge>
 
           <AppButton
             v-if="!authStore.clinic?.isOpen"
             variant="primary"
-            size="sm"
+            size="xs"
             :disabled="togglingStatus"
             @click="toggleClinicStatus(true)"
           >
@@ -41,7 +44,7 @@
           <AppButton
             v-else
             variant="danger"
-            size="sm"
+            size="xs"
             :disabled="togglingStatus"
             @click="toggleClinicStatus(false)"
           >
@@ -143,6 +146,17 @@
         </AppButton>
       </template>
     </AppModal>
+
+    <ConfirmDialog
+      v-model="showConfirmDialog"
+      :title="confirmAction === 'open' ? 'Open Clinic?' : 'Close Clinic?'"
+      :message="confirmAction === 'open' 
+        ? 'Are you sure you want to open the clinic?' 
+        : 'Are you sure you want to close the clinic? All patients will be kicked from the queue.'"
+      :confirm-text="confirmAction === 'open' ? 'Open Clinic' : 'Close Clinic'"
+      :variant="confirmAction === 'close' ? 'danger' : 'primary'"
+      @confirm="confirmToggleClinicStatus"
+    />
   </DashboardLayout>
 </template>
 
@@ -159,6 +173,7 @@ import AppSpinner from '@/components/base/AppSpinner.vue'
 import AppEmptyState from '@/components/base/AppEmptyState.vue'
 import AppModal from '@/components/base/AppModal.vue'
 import AppBadge from '@/components/base/AppBadge.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import QueueSummaryCard from '@/components/clinic/QueueSummaryCard.vue'
 import PatientRow from '@/components/clinic/PatientRow.vue'
 import { updateClinic, resetClinicQueues } from '@/firebase/firestore'
@@ -175,6 +190,10 @@ const activeServiceId = ref('')
 const detailTicket = ref(null)
 const togglingStatus = ref(false)
 const dropdownOpen = ref(false)
+const showConfirmDialog = ref(false)
+const confirmAction = ref(null) // 'open' or 'close'
+const serviceWaitingCounts = ref({}) // Track waiting counts for all services
+const countUnsubscribers = ref([]) // Store unsubscribe functions for count subscriptions
 
 const tickets = computed(() => queueStore.clinicTickets)
 const activeTickets = computed(() => tickets.value.filter(t => ['waiting', 'serving'].includes(t.status)))
@@ -189,12 +208,31 @@ const stats = computed(() => ({
   completed: tickets.value.filter((t) => t.status === 'completed').length,
 }))
 
+const waitingByService = computed(() => serviceWaitingCounts.value)
+
 function selectService(id) {
   activeServiceId.value = id
   loadingTickets.value = true
 
   queueStore.subscribeToClinicService(authStore.clinicId, id, () => {
+    // Update the waiting count for this service
+    const waitingCount = tickets.value.filter(t => t.status === 'waiting').length
+    serviceWaitingCounts.value[id] = waitingCount
     loadingTickets.value = false
+  })
+}
+
+function subscribeToAllServiceCounts() {
+  // Subscribe to each service to track waiting counts in real-time
+  services.value.forEach((service) => {
+    const unsubscribe = queueStore.subscribeToClinicService(authStore.clinicId, service.id, () => {
+      // Get tickets for this service from the store
+      const allTickets = queueStore.clinicTickets
+      const serviceTickets = allTickets.filter(t => t.serviceId === service.id)
+      const waitingCount = serviceTickets.filter(t => t.status === 'waiting').length
+      serviceWaitingCounts.value[service.id] = waitingCount
+    })
+    countUnsubscribers.value.push(unsubscribe)
   })
 }
 
@@ -212,8 +250,14 @@ function openDetail(ticket) {
 }
 
 async function toggleClinicStatus(open) {
-  if (!authStore.clinicId) return
+  confirmAction.value = open ? 'open' : 'close'
+  showConfirmDialog.value = true
+}
+
+async function confirmToggleClinicStatus() {
+  if (!authStore.clinicId || !confirmAction.value) return
   togglingStatus.value = true
+  const open = confirmAction.value === 'open'
 
   try {
     await updateClinic(authStore.clinicId, { isOpen: open })
@@ -281,11 +325,18 @@ onMounted(async () => {
 
   loading.value = false
 
-  if (services.value.length) selectService(services.value[0].id)
+  // Subscribe to all services to track waiting counts
+  if (services.value.length) {
+    subscribeToAllServiceCounts()
+    selectService(services.value[0].id)
+  }
 })
 
 onUnmounted(() => {
   queueStore.unsubscribeClinic?.()
+  // Unsubscribe from all service count subscriptions
+  countUnsubscribers.value.forEach(unsub => unsub?.())
+  countUnsubscribers.value = []
 })
 </script>
 
@@ -301,10 +352,10 @@ onUnmounted(() => {
 
 .status-card {
   display: flex;
+  flex-direction: row;
+  gap: 1rem;
   align-items: center;
-  gap: 0.75rem;
   padding: 0.75rem 1.25rem;
-  flex-shrink: 0;
 }
 
 .status-label {
@@ -312,6 +363,17 @@ onUnmounted(() => {
   color: #4b5563;
   font-size: 0.9rem;
   white-space: nowrap;
+}
+
+.status-badge {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  padding: 0.5rem 1rem !important;
+}
+
+.status-card :deep(.app-button) {
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.75rem !important;
 }
 
 .custom-dropdown {
@@ -368,6 +430,10 @@ onUnmounted(() => {
 }
 
 .dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.8rem 1rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -385,6 +451,22 @@ onUnmounted(() => {
 .dropdown-item.active {
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.waiting-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.5rem;
+  background-color: var(--color-pastel-orange);
+  color: var(--color-text-orange);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .queue-table-card {
