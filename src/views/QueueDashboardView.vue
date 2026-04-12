@@ -229,6 +229,7 @@ async function toggleClinicStatus(open) {
 }
 
 async function updateStatus({ ticketId, status }) {
+  console.log('[clinic] updating ticket:', ticketId, 'to status:', status)
   await queueStore.updateStatus(ticketId, status)
 }
 

@@ -169,6 +169,12 @@ const isOpen = computed(() => {
 async function handleJoinQueue() {
   if (!clinic.value || !isOpen.value || !selectedServiceId.value) return
 
+  // prevent joining if already in a queue
+  if (queueStore.activeTicket && ['waiting', 'serving'].includes(queueStore.activeTicket.status)) {
+    alert('You are already in a queue. Please leave your current queue first.')
+    return
+  }
+
   // If not logged in as a patient, redirect to login
   if (!authStore.isPatient || !authStore.patientId) {
     router.push('/login')

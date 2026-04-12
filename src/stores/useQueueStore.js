@@ -45,6 +45,12 @@ export const useQueueStore = defineStore('queue', {
      * receives live updates.
      */
     async joinQueue(queueData) {
+      // prevent joining if already in a queue
+      if (this.activeTicket && ['waiting', 'serving'].includes(this.activeTicket.status)) {
+        console.warn('[joinQueue] already in a queue, aborting')
+        return
+      }
+      
       this.loading = true
       try {
         const ticketId = await joinQueue(queueData)
@@ -77,7 +83,9 @@ export const useQueueStore = defineStore('queue', {
      * this local state automatically updates.
      */
     subscribeToMyTicket(ticketId) {
+      console.log('[subscribeToMyTicket] subscribing to ticketId:', ticketId)
       subscribeToTicket(ticketId, (ticket) => {
+        console.log('[subscribeToMyTicket] ticket update:', ticket?.status, ticket)
         this.activeTicket = ticket
         if (!ticket || ['cancelled', 'completed'].includes(ticket?.status)) {
           localStorage.removeItem('activeTicketId')
