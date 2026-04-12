@@ -109,6 +109,7 @@ export const useAuthStore = defineStore('auth', {
     async loginPatient({ email, password }) {
       this.loading = true
       this.isLoggingIn = true
+      localStorage.removeItem('activeTicketId')
 
       try {
         const credential = await loginWithEmail(email, password)
@@ -192,6 +193,7 @@ export const useAuthStore = defineStore('auth', {
     // sign in an existing clinic
     async loginClinic({ email, password }) {
       this.loading = true
+      localStorage.removeItem('activeTicketId')
       try {
         const credential = await loginWithEmail(email, password)
         const uid = credential.user.uid
@@ -223,6 +225,7 @@ export const useAuthStore = defineStore('auth', {
     // signs out current user and clears all auth state
     async logoutUser() {
       this.loading = true
+      localStorage.removeItem('activeTicketId')
       try {
         await logout()
         this.user = null

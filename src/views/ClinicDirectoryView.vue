@@ -103,7 +103,10 @@ onMounted(async () => {
     servicesData.value = await getAllServices()
 
     // Best-effort: ask for user location (null if denied/unsupported)
-    userLocation.value = await getUserLocation()
+    userLocation.value = await Promise.race([
+      getUserLocation(),
+      new Promise(resolve => setTimeout(() => resolve(null), 3000))
+    ])
 
     clinicsUnsubscribe = subscribeToAllClinics((data) => {
       // Initial population — distance and waitTime get filled in asynchronously
@@ -119,6 +122,7 @@ onMounted(async () => {
       loading.value = false
       enrichClinics(data)
     })
+    setTimeout(() => { loading.value = false }, 5000)
   } catch (err) {
     console.error('Error fetching data:', err)
     loading.value = false

@@ -14,6 +14,7 @@ import {
   subscribeToTicket,
   subscribeToClinicServiceTickets,
   getPatientActiveTicket,
+  getTicket,
   updateTicketStatus
 } from '@/firebase/firestore.js'
 
@@ -22,7 +23,8 @@ export const useQueueStore = defineStore('queue', {
   state: () => ({
     activeTicket: null,    // The unique ticket object for the currently logged-in patient
     clinicTickets: [],     // The large list of all patient tickets (Used by the clinic dashboard)
-    loading: false         // Visual loader indicator for database operations
+    loading: false,        // Visual loader indicator for database operations
+    ticketChecked: false
   }),
 
   // --- Getters ---
@@ -132,8 +134,17 @@ export const useQueueStore = defineStore('queue', {
         // Check localStorage first for instant recovery on refresh
         const savedTicketId = localStorage.getItem('activeTicketId')
         if (savedTicketId) {
-          this.subscribeToMyTicket(savedTicketId)
-          return
+          // verify it belongs to this patient
+          const ticket = await getTicket(savedTicketId)
+          if (ticket && ticket.patientId === patientId && ['waiting', 'serving'].includes(ticket.status)) {
+            this.activeTicket = ticket
+            this.subscribeToMyTicket(savedTicketId)
+            this.ticketChecked = true
+            return
+          } else {
+            // ticket doesn't belong to this patient or is no longer active
+            localStorage.removeItem('activeTicketId')
+          }
         }
 
         // Fall back to Firestore query
@@ -141,12 +152,20 @@ export const useQueueStore = defineStore('queue', {
         if (ticket) {
           this.activeTicket = ticket
           this.subscribeToMyTicket(ticket.id)
+          this.ticketChecked = true
         } else {
           this.activeTicket = null
+          this.ticketChecked = true
         }
       } finally {
         this.loading = false
       }
+    },
+
+    resetTicketState() {
+      this.activeTicket = null
+      this.ticketChecked = false
+      localStorage.removeItem('activeTicketId')
     }
   }
 })

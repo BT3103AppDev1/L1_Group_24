@@ -3,7 +3,7 @@
 -->
 <template>
   <PageLayout title="Dashboard">
-    <div v-if="!authStore.initialized || queueStore.loading" class="spinner-center">
+    <div v-if="!authStore.initialized || queueStore.loading || !queueStore.ticketChecked" class="spinner-center">
       <AppSpinner />
     </div>
 

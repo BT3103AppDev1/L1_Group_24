@@ -812,36 +812,14 @@ onUnmounted(() => {
   padding: 1.5rem 1.75rem;
 }
 
-.metric-card.small-metric-card {
-  padding: 1rem;
-}
-
 .small-metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
   gap: 1rem;
 }
 
-.metric-card.small-metric-card .metric-label {
-  font-size: 0.75rem;
-}
-
-.metric-card.small-metric-card .metric-value {
-  font-size: 2rem;
-}
-
-.metric-card.small-metric-card .metric-meta {
-  font-size: 0.8rem;
-}
-
 .metric-card.small-metric-card {
-  padding: 1rem;
-}
-
-.small-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 1rem;
+  padding: 1.5rem 1.75rem;
 }
 
 .metric-card.small-metric-card .metric-label {

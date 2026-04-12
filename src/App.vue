@@ -27,6 +27,7 @@ const navPortal = computed(() => {
 
 // logout handler in NavBar
 async function handleLogout() {
+  queueStore.resetTicketState()
   await authStore.logoutUser()
   router.push('/')
 }
@@ -46,14 +47,16 @@ onMounted(async () => {
   clinicStore.fetchServices()
   clinicStore.fetchAllClinics()
 
-  // Wait for auth to finish initializing, then restore active ticket
-  const stop = watch(
-    () => authStore.initialized,
-    async (initialized) => {
-      if (!initialized) return
-      stop() // only run once
-      if (authStore.isPatient && authStore.patientId) {
-        await queueStore.checkActiveTicket(authStore.patientId)
+  // Wait for auth state and patient identity changes, then restore active ticket
+  watch(
+    () => authStore.patientId,
+    async (patientId) => {
+      if (!authStore.initialized) return
+
+      if (patientId) {
+        await queueStore.checkActiveTicket(patientId)
+      } else {
+        queueStore.ticketChecked = true
       }
     },
     { immediate: true }
