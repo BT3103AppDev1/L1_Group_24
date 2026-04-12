@@ -388,7 +388,8 @@ onUnmounted(() => {
 }
 
 .queue-table-card {
-  padding: 1.25rem;
+  padding: 1.25rem 2rem;
+  margin-top: -3.8rem;
 }
 
 .table-header {
@@ -399,7 +400,7 @@ onUnmounted(() => {
 }
 
 .table-title {
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;

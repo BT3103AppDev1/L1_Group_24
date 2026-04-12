@@ -11,9 +11,9 @@
                     :error="errors.contactNumber" required />
                 <AppInput v-model="form.email" label="Email Address" type="email" placeholder="e.g. clinic@email.com"
                     :error="errors.email" required />
-                <AppInput v-model="form.address" label="Residential Address" placeholder="e.g. 123 Orchard Rd"
+                <AppInput v-model="form.address" label="Location" placeholder="e.g. 123 Orchard Rd"
                     :error="errors.address" required />
-                <AppInput v-model="form.postalCode" label="Residential Postal Code" placeholder="e.g. 123456"
+                <AppInput v-model="form.postalCode" label="Postal Code" placeholder="e.g. 123456"
                     :error="errors.postalCode" required />
                 <AppSelect v-model="form.district" label="District" :options="districtOptions" :error="errors.district"
                     required />
@@ -36,7 +36,7 @@
                 <div class="form-group">
                     <label class="form-label">Operating Hours <span class="required">*</span></label>
                     <p class="form-hint">Set the days and hours your clinic is open.</p>
-                    <div class="hours-grid">
+                    <div class="hours-grid" :class="{ 'hours-grid--error': errors.operatingHours }">
                         <div v-for="day in DAYS" :key="day.key" class="day-row">
                             <label class="day-toggle">
                                 <input type="checkbox" v-model="form.operatingHours[day.key].open"
@@ -408,6 +408,11 @@ async function submit() {
 .time-sep {
     color: #9ca3af;
     font-weight: 600;
+}
+
+.hours-grid--error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 
 .closed-label {
