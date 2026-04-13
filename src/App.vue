@@ -1,10 +1,12 @@
 <template>
   <NavBar :portal="navPortal" @logout="handleLogout" />
   <router-view />
+  <AppFooter />
 </template>
 
 <script setup>
 import NavBar from '@/components/shared/NavBar.vue'
+import AppFooter from '@/components/shared/AppFooter.vue'
 import { computed, onMounted, watch } from 'vue'
 // import { seedServices } from '@/firebase/firestore.js'
 // import { runSeed } from './firebase/seed.js'
