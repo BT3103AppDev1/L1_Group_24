@@ -235,6 +235,16 @@ export const useAuthStore = defineStore('auth', {
     async logoutUser() {
       this.loading = true
       localStorage.removeItem('activeTicketId')
+
+      // Detach queue listeners before signing out so Firestore doesn't
+      // throw permission errors once auth is gone
+      try {
+        const { useQueueStore } = await import('@/stores/useQueueStore.js')
+        useQueueStore().stopAllClinicSubscriptions()
+      } catch (e) {
+        console.warn('[AuthStore] failed to stop queue subscriptions:', e)
+      }
+
       try {
         await logout()
         this.user = null
