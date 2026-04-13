@@ -383,6 +383,11 @@ const todayLineChartData = computed(() => {
     endHour = Math.ceil(parseTimeToMinutes(fallback.end) / 60)
   }
 
+  // Extend endHour to include any data beyond clinic hours
+  const dataHours = counts.map(c => c.hour).filter(h => h >= startHour)
+  const maxDataHour = dataHours.length > 0 ? Math.max(...dataHours) : endHour
+  endHour = Math.max(endHour, maxDataHour)
+
   const filtered = counts.filter((c) => c.hour >= startHour && c.hour <= endHour)
 
   return {
