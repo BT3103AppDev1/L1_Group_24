@@ -2,7 +2,9 @@
   <div class="clinic-detail page-container">
     <router-link to="/clinics" class="back-btn">← Back to Clinic Directory</router-link>
 
-    <AppSpinner v-if="pageLoading" />
+    <div v-if="pageLoading" class="spinner-center">
+      <AppSpinner />
+    </div>
 
     <div v-else-if="!clinic" class="empty-state card">
       <h2>Clinic not found</h2>
@@ -167,6 +169,12 @@ const isOpen = computed(() => {
 async function handleJoinQueue() {
   if (!clinic.value || !isOpen.value || !selectedServiceId.value) return
 
+  // prevent joining if already in a queue
+  if (queueStore.activeTicket && ['waiting', 'serving'].includes(queueStore.activeTicket.status)) {
+    alert('You are already in a queue. Please leave your current queue first.')
+    return
+  }
+
   // If not logged in as a patient, redirect to login
   if (!authStore.isPatient || !authStore.patientId) {
     router.push('/login')
@@ -203,6 +211,13 @@ async function handleJoinQueue() {
   padding: 1rem;
 }
 
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+}
+
 .back-btn {
   display: inline-block;
   margin-bottom: 1rem;
@@ -213,7 +228,7 @@ async function handleJoinQueue() {
 
 .card {
   background: white;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid #dbeafe;
   box-shadow: 0 10px 22px rgba(59, 130, 246, 0.08);
   padding: 1.2rem;
@@ -225,12 +240,13 @@ async function handleJoinQueue() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1.75rem;
 }
 
 .clinic-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #1d4ed8;
+  color: var(--color-primary-dark);
 }
 
 .meta {
@@ -238,8 +254,14 @@ async function handleJoinQueue() {
   margin: 0.3rem 0;
 }
 
+.services-section {
+  padding: 1.75rem;
+}
+
 .services-section h2 {
-  margin: 0 0 0.7rem;
+  font-size: 1.25rem; 
+  font-weight: 700; 
+  margin: 0 0 0.85rem;
   color: #1e3a8a;
 }
 
@@ -275,6 +297,7 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  padding: 0.1rem;
 }
 
 .service-info strong {
@@ -304,6 +327,7 @@ ul {
 
 .queue-cta {
   text-align: center;
+  padding: 1.75rem;
 }
 
 .status-note {

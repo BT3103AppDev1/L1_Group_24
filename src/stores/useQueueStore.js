@@ -14,6 +14,7 @@ import {
   subscribeToTicket,
   subscribeToClinicServiceTickets,
   getPatientActiveTicket,
+  getTicket,
   updateTicketStatus
 } from '@/firebase/firestore.js'
 
@@ -22,7 +23,8 @@ export const useQueueStore = defineStore('queue', {
   state: () => ({
     activeTicket: null,    // The unique ticket object for the currently logged-in patient
     clinicTickets: [],     // The large list of all patient tickets (Used by the clinic dashboard)
-    loading: false         // Visual loader indicator for database operations
+    loading: false,        // Visual loader indicator for database operations
+    ticketChecked: false
   }),
 
   // --- Getters ---
@@ -45,9 +47,16 @@ export const useQueueStore = defineStore('queue', {
      * receives live updates.
      */
     async joinQueue(queueData) {
+      // prevent joining if already in a queue
+      if (this.activeTicket && ['waiting', 'serving'].includes(this.activeTicket.status)) {
+        console.warn('[joinQueue] already in a queue, aborting')
+        return
+      }
+      
       this.loading = true
       try {
         const ticketId = await joinQueue(queueData)
+        localStorage.setItem('activeTicketId', ticketId)
         this.subscribeToMyTicket(ticketId)
       } finally {
         this.loading = false
@@ -63,6 +72,7 @@ export const useQueueStore = defineStore('queue', {
       this.loading = true
       try {
         await leaveQueue(this.activeTicket.id)
+        localStorage.removeItem('activeTicketId')
         this.activeTicket = null
       } finally {
         this.loading = false
@@ -75,8 +85,13 @@ export const useQueueStore = defineStore('queue', {
      * this local state automatically updates.
      */
     subscribeToMyTicket(ticketId) {
+      console.log('[subscribeToMyTicket] subscribing to ticketId:', ticketId)
       subscribeToTicket(ticketId, (ticket) => {
+        console.log('[subscribeToMyTicket] ticket update:', ticket?.status, ticket)
         this.activeTicket = ticket
+        if (!ticket || ['cancelled', 'completed'].includes(ticket?.status)) {
+          localStorage.removeItem('activeTicketId')
+        }
       })
     },
 
@@ -116,16 +131,41 @@ export const useQueueStore = defineStore('queue', {
     async checkActiveTicket(patientId) {
       this.loading = true
       try {
+        // Check localStorage first for instant recovery on refresh
+        const savedTicketId = localStorage.getItem('activeTicketId')
+        if (savedTicketId) {
+          // verify it belongs to this patient
+          const ticket = await getTicket(savedTicketId)
+          if (ticket && ticket.patientId === patientId && ['waiting', 'serving'].includes(ticket.status)) {
+            this.activeTicket = ticket
+            this.subscribeToMyTicket(savedTicketId)
+            this.ticketChecked = true
+            return
+          } else {
+            // ticket doesn't belong to this patient or is no longer active
+            localStorage.removeItem('activeTicketId')
+          }
+        }
+
+        // Fall back to Firestore query
         const ticket = await getPatientActiveTicket(patientId)
         if (ticket) {
           this.activeTicket = ticket
           this.subscribeToMyTicket(ticket.id)
+          this.ticketChecked = true
         } else {
           this.activeTicket = null
+          this.ticketChecked = true
         }
       } finally {
         this.loading = false
       }
+    },
+
+    resetTicketState() {
+      this.activeTicket = null
+      this.ticketChecked = false
+      localStorage.removeItem('activeTicketId')
     }
   }
 })

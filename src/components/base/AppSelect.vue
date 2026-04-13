@@ -33,7 +33,11 @@
           {{ opt.label }}
         </option>
       </select>
-      <span class="app-select__chevron" aria-hidden="true">v</span>
+      <span class="app-select__chevron" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </span>
     </div>
     <!-- Error message display if the error prop is provided -->
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
@@ -141,8 +145,12 @@ const normalizedOptions = computed(() =>
   transform: translateY(-50%);
   pointer-events: none;
   color: var(--color-primary-dark);
-  font-size: 0.8rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+
+.form-control--error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 </style>

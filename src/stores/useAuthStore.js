@@ -37,45 +37,48 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     // set up Firebase Auth listener to get user data
     initAuth() {
-      onAuthChange(async (firebaseUser) => {
-        if (this.isLoggingIn) return 
+      return new Promise((resolve) => {
+        onAuthChange(async (firebaseUser) => {
+          if (this.isLoggingIn) return
 
-        this.user = firebaseUser
+          this.user = firebaseUser
 
-        if (firebaseUser) {
-          try {
-            const patient = await getPatient(firebaseUser.uid)
+          if (firebaseUser) {
+            try {
+              const patient = await getPatient(firebaseUser.uid)
 
-            // try patient first
-            if (patient) {
-              this.patient = patient
-              this.clinic = null
-              this.role = 'patient'
-            } else {
-              // fall back to clinic
-              const clinic = await getClinic(firebaseUser.uid)
-              if (clinic) {
-                this.clinic = clinic
-                this.patient = null
-                this.role = 'clinic'
+              // try patient first
+              if (patient) {
+                this.patient = patient
+                this.clinic = null
+                this.role = 'patient'
               } else {
-                // authenticated but no Firestore profile found
-                this.patient = null
-                this.clinic  = null
-                this.role    = null
+                // fall back to clinic
+                const clinic = await getClinic(firebaseUser.uid)
+                if (clinic) {
+                  this.clinic = clinic
+                  this.patient = null
+                  this.role = 'clinic'
+                } else {
+                  // authenticated but no Firestore profile found
+                  this.patient = null
+                  this.clinic  = null
+                  this.role    = null
+                }
               }
+            } catch (err) {
+              console.error('[AuthStore] initAuth profile fetch error:', err)
             }
-          } catch (err) {
-            console.error('[AuthStore] initAuth profile fetch error:', err)
+          } else {
+            // Signed out — clear everything
+            this.patient = null
+            this.clinic  = null
+            this.role    = null
           }
-        } else {
-          // Signed out — clear everything
-          this.patient = null
-          this.clinic  = null
-          this.role    = null
-        }
 
-        this.initialized = true
+          this.initialized = true
+          resolve()
+        })
       })
     },
 
@@ -106,6 +109,7 @@ export const useAuthStore = defineStore('auth', {
     async loginPatient({ email, password }) {
       this.loading = true
       this.isLoggingIn = true
+      localStorage.removeItem('activeTicketId')
 
       try {
         const credential = await loginWithEmail(email, password)
@@ -189,6 +193,7 @@ export const useAuthStore = defineStore('auth', {
     // sign in an existing clinic
     async loginClinic({ email, password }) {
       this.loading = true
+      localStorage.removeItem('activeTicketId')
       try {
         const credential = await loginWithEmail(email, password)
         const uid = credential.user.uid
@@ -220,6 +225,7 @@ export const useAuthStore = defineStore('auth', {
     // signs out current user and clears all auth state
     async logoutUser() {
       this.loading = true
+      localStorage.removeItem('activeTicketId')
       try {
         await logout()
         this.user = null

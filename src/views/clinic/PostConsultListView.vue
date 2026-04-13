@@ -11,26 +11,28 @@
 
             <!-- Patient cards -->
             <template v-if="tickets.length">
-                <AppCard v-for="ticket in tickets" :key="ticket.id" class="patient-card"
-                    @click="goToConsult(ticket.id)">
-                    <div class="card-left">
-                        <span class="ticket-num">{{ ticket.ticketNumber }}</span>
-                        <div class="card-info">
-                            <p class="patient-name">{{ ticket.patientName || 'Patient' }}</p>
-                            <p class="card-meta">{{ ticket.serviceName }} · Joined {{ formatTime(ticket.joinedAt) }}</p>
-                            <!-- Show symptoms chips if they exist -->
-                            <div v-if="ticket.symptoms?.length" class="chips">
-                                <span v-for="s in ticket.symptoms" :key="s" class="chip">{{ s }}</span>
+                <div class="cards-list">
+                    <AppCard v-for="ticket in tickets" :key="ticket.id" class="patient-card"
+                        @click="goToConsult(ticket.id)">
+                        <div class="card-left">
+                            <span class="ticket-num">{{ ticket.ticketNumber }}</span>
+                            <div class="card-info">
+                                <p class="patient-name">{{ ticket.patientName || 'Patient' }}</p>
+                                <p class="card-meta">{{ ticket.serviceName }} · Joined {{ formatTime(ticket.joinedAt) }}</p>
+                                <!-- Show symptoms chips if they exist -->
+                                <div v-if="ticket.symptoms?.length" class="chips">
+                                    <span v-for="s in ticket.symptoms" :key="s" class="chip">{{ s }}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="card-right">
-                        <span class="serving-badge">Serving</span>
-                        <AppButton variant="primary" size="sm" @click.stop="goToConsult(ticket.id)">
-                            Start Post-Consult →
-                        </AppButton>
-                    </div>
-                </AppCard>
+                        <div class="card-right">
+                            <span class="serving-badge">Serving</span>
+                            <AppButton variant="primary" size="sm" @click.stop="goToConsult(ticket.id)">
+                                Start Post-Consult →
+                            </AppButton>
+                        </div>
+                    </AppCard>
+                </div>
             </template>
 
             <!-- Empty state -->
@@ -126,7 +128,7 @@ onMounted(async () => {
 }
 
 .patient-card {
-    padding: 1.25rem 1.5rem;
+    padding: 1.25rem 2rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -177,6 +179,12 @@ onMounted(async () => {
     text-overflow: ellipsis;
 }
 
+.cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;  /* adjust to taste */
+}
+
 .card-meta {
     font-size: .8rem;
     color: #6b7280;
@@ -202,7 +210,7 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: .6rem;
+    gap: .75rem;
     flex-shrink: 0;
 }
 

@@ -8,8 +8,14 @@
         <form v-else @submit.prevent="submit" class="consult-form">
             <AppCard class="section-card">
                 <h3 class="sec-title">Patient Info</h3>
-                <div class="info-row"><span>Ticket</span><span>{{ ticket?.ticketNumber }}</span></div>
-                <div class="info-row"><span>Service</span><span>{{ ticket?.serviceName }}</span></div>
+                <div class="info-row">
+                    <span class="form-label">Ticket</span>
+                    <span>{{ ticket?.ticketNumber }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="form-label">Service</span>
+                    <span>{{ ticket?.serviceName }}</span>
+                </div>
                 <div class="info-row" v-if="ticket?.symptoms?.length">
                     <span>Reported Symptoms</span>
                     <div class="chips">
@@ -20,9 +26,9 @@
 
             <AppCard class="section-card">
                 <h3 class="sec-title">Diagnosis & Notes</h3>
-                <AppInput v-model="form.diagnosis" label="Diagnosis" placeholder="e.g. URTI" :error="errors.diagnosis"
+                <AppInput v-model="form.diagnosis" label="Diagnosis" placeholder="Enter here" :error="errors.diagnosis"
                     required />
-                <AppTextarea v-model="form.notes" label="Doctor's Notes" placeholder="Clinical observations..."
+                <AppTextarea v-model="form.notes" label="Doctor's Notes" placeholder="Enter here"
                     :rows="4" />
             </AppCard>
 
@@ -171,18 +177,22 @@ onMounted(async () => {
 .consult-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .section-card {
-    padding: 1.25rem;
+    padding: 1.75rem;
     display: flex;
     flex-direction: column;
     gap: .875rem;
 }
 
+.section-card > :last-child {
+    margin-bottom: 0;
+}
+
 .sec-title {
-    font-size: 1rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: #1f2937;
     margin: 0;
@@ -194,6 +204,10 @@ onMounted(async () => {
     font-size: .875rem;
     padding: .35rem 0;
     border-bottom: 1px solid #f3f4f6;
+}
+
+.info-row:last-child {
+    border-bottom: none;
 }
 
 .info-row span:first-child {
@@ -228,11 +242,15 @@ onMounted(async () => {
 .med-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr auto;
-    gap: .5rem;
+    gap: .75rem;
     align-items: end;
-    padding: .75rem;
+    padding: 1.75rem;
     background: #f9fafb;
     border-radius: 8px;
+}
+
+.med-row .form-group {
+    margin-bottom: 0;
 }
 
 .remove-btn {

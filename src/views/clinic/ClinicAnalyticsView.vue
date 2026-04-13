@@ -15,30 +15,31 @@
       />
 
       <!-- TOP SECTION: DAILY ANALYTICS -->
-      <div class="analytics-header">
-        <h2 class="section-title">Daily Analytics <span class="badge-today">Today</span></h2>
-        <p class="section-desc">Real-time overview of your queue activity today.</p>
-      </div>
+      <div class="section">
+        <div class="analytics-header">
+          <h2 class="section-title">Daily Analytics <span class="badge-today">Today</span></h2>
+          <p class="section-desc">Real-time overview of today's queue activity.</p>
+        </div>
 
-      <section class="stats-grid mb-4">
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Queue Joins</p>
-          <p class="metric-value">{{ todayJoins }}</p>
-          <p class="metric-meta">Total joins today</p>
-        </AppCard>
+        <section class="stats-grid mb-8">
+          <AppCard class="metric-card" flat>
+            <p class="metric-label">Queue Joins</p>
+            <p class="metric-value">{{ todayJoins }}</p>
+            <p class="metric-meta">Total number of patients that joined</p>
+          </AppCard>
 
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Average Wait Time</p>
-          <p class="metric-value">{{ Math.round(averageWaitTodayMinutes) }}</p>
-          <p class="metric-meta">Mins per patient today</p>
-        </AppCard>
+          <AppCard class="metric-card" flat>
+            <p class="metric-label">Average Wait Time</p>
+            <p class="metric-value">{{ Math.round(averageWaitTodayMinutes) }}</p>
+            <p class="metric-meta">minutes per patient</p>
+          </AppCard>
 
-        <AppCard class="metric-card" flat>
-          <p class="metric-label">Peak Hour</p>
-          <p class="metric-value text-md">{{ todayPeakHourLabel }}</p>
-          <p class="metric-meta">Highest queue volume</p>
-        </AppCard>
-      </section>
+          <AppCard class="metric-card" flat>
+            <p class="metric-label">Peak Hour</p>
+            <p class="metric-value text-md">{{ todayPeakHourLabel }}</p>
+            <p class="metric-meta">{{ todayPeakHourObj ? `${todayPeakHourObj.count} patient(s) joined at this hour` : 'No activity yet' }}</p>
+          </AppCard>
+        </section>
 
       <section class="small-metrics-grid mb-8">
         <AppCard class="metric-card small-metric-card completed-tint" flat>
@@ -58,88 +59,91 @@
         </AppCard>
       </section>
 
-      <AppCard class="chart-card mb-12">
-        <div class="chart-header">
-          <div>
-            <h3 class="chart-title">Today's Queue Volume by Hour</h3>
-            <p class="chart-copy">Real-time hourly arrivals based on opening hours.</p>
+        <AppCard class="chart-card mb-12">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Queue Volume by Hour</h3>
+              <p class="chart-copy">Real-time hourly arrivals based on opening hours.</p>
+            </div>
           </div>
-        </div>
-        <div class="chart-shell">
-          <Line
-            v-if="todayJoins > 0"
-            :data="todayLineChartData"
-            :options="lineChartOptions"
-            class="chart-canvas"
-          />
-          <AppEmptyState
-            v-else
-            icon="🕒"
-            title="No activity yet"
-            description="Hourly queue volume will appear here as patients join today."
-          />
-        </div>
-      </AppCard>
+          <div class="chart-shell">
+            <Line
+              v-if="todayJoins > 0"
+              :data="todayLineChartData"
+              :options="lineChartOptions"
+              class="chart-canvas"
+            />
+            <AppEmptyState
+              v-else
+              icon="🕒"
+              title="No activity yet"
+              description="Hourly queue volume will appear here as patients join."
+              class="chart-empty"
+            />
+          </div>
+        </AppCard>
+      </div>
 
       <!-- BOTTOM SECTION: PAST ANALYTICS -->
-      <div class="analytics-header split-header">
-        <div>
-          <h2 class="section-title">Past Analytics</h2>
-          <p class="section-desc">Historical queue trends and service breakdowns.</p>
-        </div>
-        <div class="analytics-controls">
-          <div class="toggle-group">
-            <button
-              class="toggle-btn"
-              :class="{ active: pastMode === 'week' }"
-              @click="pastMode = 'week'"
-            >
-              Past Week
-            </button>
-            <button
-              class="toggle-btn"
-              :class="{ active: pastMode === 'month' }"
-              @click="pastMode = 'month'"
-            >
-              Monthly
-            </button>
+      <div class="section">
+        <div class="analytics-header split-header">
+          <div>
+            <h2 class="section-title">Past Analytics</h2>
+            <p class="section-desc">Historical queue trends and service breakdowns.</p>
           </div>
-          <select
-            v-model="selectedMonth"
-            class="app-select"
-            :class="{ 'hidden-select': pastMode !== 'month' }"
-          >
-            <option v-for="month in availableMonths" :key="month.value" :value="month.value">
-              {{ month.label }}
-            </option>
-          </select>
+          <div class="analytics-controls">
+            <div class="toggle-group">
+              <button
+                class="toggle-btn"
+                :class="{ active: pastMode === 'week' }"
+                @click="pastMode = 'week'"
+              >
+                Past Week
+              </button>
+              <button
+                class="toggle-btn"
+                :class="{ active: pastMode === 'month' }"
+                @click="pastMode = 'month'"
+              >
+                Monthly
+              </button>
+            </div>
+            <select
+              v-model="selectedMonth"
+              class="app-select"
+              :class="{ 'hidden-select': pastMode !== 'month' }"
+            >
+              <option v-for="month in availableMonths" :key="month.value" :value="month.value">
+                {{ month.label }}
+              </option>
+            </select>
+          </div>
         </div>
-      </div>
 
-      <div v-if="loadingPast" class="state-shell min-h-[300px]">
-        <AppSpinner />
-      </div>
-      <template v-else>
-        <!-- Past Stats Cards -->
-        <section class="stats-grid mb-4">
-          <AppCard class="metric-card green-tint" flat>
-            <p class="metric-label">Average Joins</p>
-            <p class="metric-value">{{ pastAverageJoins }}</p>
-            <p class="metric-meta">Per day</p>
-          </AppCard>
+        <div v-if="loadingPast" class="state-shell min-h-[300px]">
+          <AppSpinner />
+        </div>
+        <template v-else>
+          <!-- Past Stats Cards -->
+          <section class="stats-grid mb-8">
+            <AppCard class="metric-card green-tint" flat>
+              <p class="metric-label">Average Joins</p>
+              <p class="metric-value">{{ pastAverageJoins }}</p>
+              <p class="metric-meta">per day</p>
+            </AppCard>
 
-          <AppCard class="metric-card green-tint" flat>
-            <p class="metric-label">Average Wait Time</p>
-            <p class="metric-value">{{ pastAverageWaitTime }}</p>
-            <p class="metric-meta">Minutes per patient</p>
-          </AppCard>
+            <AppCard class="metric-card green-tint" flat>
+              <p class="metric-label">Average Wait Time</p>
+              <p class="metric-value">{{ pastAverageWaitTime }}</p>
+              <p class="metric-meta">minutes per patient</p>
+            </AppCard>
 
-          <AppCard class="metric-card green-tint" flat>
-            <p class="metric-label">Peak Hour</p>
-            <p class="metric-value text-md">{{ pastPeakHourLabel }}</p>
-            <p class="metric-meta">Highest average volume</p>
-          </AppCard>
-        </section>
+            <AppCard class="metric-card green-tint" flat>
+              <p class="metric-label">Peak Hour</p>
+              <p class="metric-value text-md">{{ pastPeakHourLabel }}</p>
+              <p class="metric-meta">{{ pastPeakHourMeta }}</p>
+            </AppCard>
+          </section>
 
         <section class="small-metrics-grid mb-8">
           <AppCard class="metric-card small-metric-card completed-tint" flat>
@@ -159,49 +163,51 @@
           </AppCard>
         </section>
 
-        <AppEmptyState
-          v-if="pastTickets.length === 0"
-          icon="📅"
-          title="No data found"
-          description="There is no queue history for this selected period."
-        />
-
-        <div v-else class="charts-grid mb-12">
-          <!-- Past Line Chart -->
-          <AppCard class="chart-card">
-            <div class="chart-header">
-              <div>
-                <h3 class="chart-title">Avg Daily Volume by Hours</h3>
-                <p class="chart-copy">When patients arrived during the day.</p>
-              </div>
-            </div>
-            <div class="chart-shell">
-              <Line
-                :data="pastLineChartData"
-                :options="lineChartOptionsGreen"
-                class="chart-canvas"
-              />
-            </div>
+          <AppCard v-if="pastTickets.length === 0" class="chart-card">
+            <AppEmptyState
+              icon="📅"
+              title="No data found"
+              description="There is no queue history for this selected period."
+            />
           </AppCard>
 
-          <!-- Service Proportion Pie Chart -->
-          <AppCard class="chart-card">
-            <div class="chart-header">
-              <div>
-                <h3 class="chart-title">Service Proportion</h3>
-                <p class="chart-copy">Breakdown of services joined.</p>
+          <div v-else class="charts-grid mb-12">
+            <!-- Past Line Chart -->
+            <AppCard class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <h3 class="chart-title">Avg Daily Volume by Hours</h3>
+                  <p class="chart-copy">When patients arrived during the day.</p>
+                </div>
               </div>
-            </div>
-            <div class="chart-shell pie-shell">
-              <Pie
-                :data="pastPieChartData"
-                :options="pieChartOptions"
-                class="chart-canvas pie-canvas"
-              />
-            </div>
-          </AppCard>
-        </div>
-      </template>
+              <div class="chart-shell">
+                <Line
+                  :data="pastLineChartData"
+                  :options="lineChartOptionsGreen"
+                  class="chart-canvas"
+                />
+              </div>
+            </AppCard>
+
+            <!-- Service Proportion Pie Chart -->
+            <AppCard class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <h3 class="chart-title">Service Proportion</h3>
+                  <p class="chart-copy">Breakdown of services joined.</p>
+                </div>
+              </div>
+              <div class="chart-shell pie-shell">
+                <Pie
+                  :data="pastPieChartData"
+                  :options="pieChartOptions"
+                  class="chart-canvas pie-canvas"
+                />
+              </div>
+            </AppCard>
+          </div>
+        </template>
+      </div>
     </template>
   </DashboardLayout>
 </template>
@@ -346,7 +352,7 @@ const todayPeakHourObj = computed(() => {
 const todayPeakHourLabel = computed(() => {
   const peak = todayPeakHourObj.value
   if (!peak) return '--'
-  return `${formatHourLabel(peak.hour)} (${peak.count})`
+  return formatHourLabel(peak.hour)
 })
 
 const todayCompleted = computed(() => dailyOutcomeTotals.value.completed)
@@ -478,7 +484,16 @@ const pastPeakHourLabel = computed(() => {
     }
   })
   if (max === 0) return '--'
-  return `${formatHourLabel(peakHour)} (${(max / pastPeriodDays.value).toFixed(1)} /day)`
+  return formatHourLabel(peakHour)
+})
+
+const pastPeakHourMeta = computed(() => {
+  let max = -1
+  pastHourlyData.value.forEach((count) => {
+    if (count > max) max = count
+  })
+  if (max === 0) return 'No data for this period'
+  return `${(max / pastPeriodDays.value).toFixed(1)} patients per day at this hour`
 })
 
 const pastLineChartData = computed(() => {
@@ -659,6 +674,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.section {
+  padding: 0.5rem 1rem;
+}
+
 .state-shell {
   display: flex;
   justify-content: center;
@@ -682,7 +701,7 @@ onUnmounted(() => {
   margin-bottom: 2.5rem;
 }
 .mb-12 {
-  margin-bottom: 3rem;
+  margin-bottom: 0.5rem;
 }
 .ml-4 {
   margin-left: 1rem;
@@ -695,7 +714,7 @@ onUnmounted(() => {
 .split-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -790,17 +809,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 1.5rem;
-}
-
-.metric-card.small-metric-card {
-  padding: 1rem;
+  padding: 1.5rem 1.75rem;
 }
 
 .small-metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
   gap: 1rem;
+}
+
+.metric-card.small-metric-card {
+  padding: 1.5rem 1.75rem;
 }
 
 .metric-card.small-metric-card .metric-label {
@@ -859,9 +878,11 @@ onUnmounted(() => {
   line-height: 1;
   color: #1d4ed8;
 }
+
 .metric-value.text-md {
-  font-size: clamp(1.2rem, 3vw, 1.8rem);
-  padding: 0.3rem 0;
+  font-size: clamp(2rem, 4vw, 2.495rem);
+  line-height: 1;
+  padding: 0.1rem 0;
 }
 
 .metric-meta {
@@ -880,7 +901,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .chart-header {
@@ -907,6 +928,11 @@ onUnmounted(() => {
   border-radius: 0.75rem;
   min-height: 320px;
   width: 100%;
+}
+
+.chart-shell :deep(.empty-state) {
+  padding: 1.5rem;
+  min-height: unset;
 }
 
 .pie-shell {

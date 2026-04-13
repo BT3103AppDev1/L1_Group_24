@@ -5,15 +5,17 @@
 
 <script setup>
 import NavBar from '@/components/shared/NavBar.vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 // import { seedServices } from '@/firebase/firestore.js'
 // import { runSeed } from './firebase/seed.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { useClinicStore } from '@/stores/useClinicStore.js'
+import { useQueueStore } from '@/stores/useQueueStore.js'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const clinicStore = useClinicStore()
+const queueStore = useQueueStore()
 const router = useRouter()
 
 // render correct NavBar for different users
@@ -25,6 +27,7 @@ const navPortal = computed(() => {
 
 // logout handler in NavBar
 async function handleLogout() {
+  queueStore.resetTicketState()
   await authStore.logoutUser()
   router.push('/')
 }
@@ -43,5 +46,20 @@ onMounted(async () => {
   // pre-load services and clinic list (public data)
   clinicStore.fetchServices()
   clinicStore.fetchAllClinics()
+
+  // Wait for auth state and patient identity changes, then restore active ticket
+  watch(
+    () => authStore.patientId,
+    async (patientId) => {
+      if (!authStore.initialized) return
+
+      if (patientId) {
+        await queueStore.checkActiveTicket(patientId)
+      } else {
+        queueStore.ticketChecked = true
+      }
+    },
+    { immediate: true }
+  )
 })
 </script>

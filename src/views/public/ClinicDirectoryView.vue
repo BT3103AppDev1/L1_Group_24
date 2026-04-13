@@ -6,15 +6,30 @@
     </section>
 
     <section class="directory-filters card">
-      <input v-model="search" type="search" placeholder="Search clinic name..." aria-label="Search clinics" />
-      <select v-model="district" aria-label="Filter by district">
-        <option value="">All Districts</option>
-        <option v-for="d in districts" :key="d" :value="d">{{ d }}</option>
-      </select>
-      <select v-model="service" aria-label="Filter by service">
-        <option value="">All Services</option>
-        <option v-for="s in servicesData" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </select>
+      <input v-model="search" type="search" placeholder="Search clinic name" aria-label="Search clinics" />
+      <div class="select-wrapper">
+        <select v-model="district" aria-label="Filter by district">
+          <option value="">All Districts</option>
+          <option v-for="d in districts" :key="d" :value="d">{{ d }}</option>
+        </select>
+        <span class="select-chevron" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </div>
+
+      <div class="select-wrapper">
+        <select v-model="service" aria-label="Filter by service">
+          <option value="">All Services</option>
+          <option v-for="s in servicesData" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
+        <span class="select-chevron" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </div>
       <label class="openswitch"><input type="checkbox" v-model="openNow" /> Open now</label>
     </section>
 
@@ -88,7 +103,10 @@ onMounted(async () => {
     servicesData.value = await getAllServices()
 
     // Best-effort: ask for user location (null if denied/unsupported)
-    userLocation.value = await getUserLocation()
+    userLocation.value = await Promise.race([
+      getUserLocation(),
+      new Promise(resolve => setTimeout(() => resolve(null), 3000))
+    ])
 
     clinicsUnsubscribe = subscribeToAllClinics((data) => {
       // Initial population — distance and waitTime get filled in asynchronously
@@ -104,6 +122,7 @@ onMounted(async () => {
       loading.value = false
       enrichClinics(data)
     })
+    setTimeout(() => { loading.value = false }, 5000)
   } catch (err) {
     console.error('Error fetching data:', err)
     loading.value = false
@@ -208,12 +227,12 @@ function viewDetail(clinicId) {
 .page-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1rem;
+  padding-bottom: 4rem;
 }
 
 .card {
   background: white;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid #e0edfc;
   box-shadow: 0 8px 20px rgba(28, 94, 212, 0.08);
   padding: 1rem;
@@ -228,12 +247,12 @@ function viewDetail(clinicId) {
 .directory-hero h1 {
   margin: 0 0 0.5rem;
   font-size: 2rem;
-  color: #1d4ed8;
+  color: var(--color-primary-dark);
 }
 
 .directory-hero p {
   margin: 0;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .directory-filters {
@@ -241,6 +260,7 @@ function viewDetail(clinicId) {
   grid-template-columns: 1fr 1fr 1fr auto;
   gap: 0.8rem;
   align-items: center;
+  padding: 1.25rem;
 }
 
 .directory-filters input,
@@ -277,7 +297,7 @@ function viewDetail(clinicId) {
 
 .clinic-card {
   margin-bottom: 0;
-  padding: 0.9rem;
+  padding: 1.5rem;
   min-height: 220px;
   display: flex;
   flex-direction: column;
@@ -382,5 +402,29 @@ function viewDetail(clinicId) {
   .clinic-bottom .btn {
     width: 100%;
   }
+}
+
+.select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding-right: 2.5rem; /* make room for the custom arrow */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.select-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--color-primary-dark);
+  display: flex;
+  align-items: center;
 }
 </style>

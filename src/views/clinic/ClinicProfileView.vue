@@ -1,33 +1,41 @@
 <template>
-  <PageLayout title="Clinic Profile">
+  <DashboardLayout title="Clinic Profile">
     <form @submit.prevent="save" class="profile-form">
 
       <!-- Basic clinic information form fields -->
       <AppCard class="section-card">
-        <h3 class="sec-title">Basic Information</h3>
+        <h3 class="sec-title">Clinic Information</h3>
         <AppInput v-model="form.name"          label="Clinic Name"    :error="errors.name"    required />
-        <AppInput v-model="form.email"         label="Email"          type="email" disabled />
-        <AppInput v-model="form.contactNumber" label="Contact Number" disabled />
-        <AppInput v-model="form.address"       label="Address"        :error="errors.address" required />
+        <AppInput v-model="form.email"         label="Email Address🔒" type="email" disabled />
+        <AppInput v-model="form.contactNumber" label="Contact Number🔒" disabled />
+        <AppInput v-model="form.address"       label="Location"        :error="errors.address" required />
         <AppInput v-model="form.postalCode"    label="Postal Code"    :error="errors.postalCode" required />
         <AppSelect v-model="form.district"     label="District"       :options="districtOptions" :error="errors.district" required />
       </AppCard>
 
-      <!-- Opening hours per day with toggle and time pickers -->
+      <!-- Operating hours per day with toggle and time pickers -->
       <AppCard class="section-card">
-        <h3 class="sec-title">Opening Hours</h3>
-        <div v-for="day in DAYS" :key="day.value" class="hours-row">
-          <span class="day-label">{{ day.label }}</span>
-          <label class="open-toggle">
-            <AppCheckbox v-model="form.hours[day.value].open" />
-            <span>Open</span>
-          </label>
-          <template v-if="form.hours[day.value].open">
-            <input type="time" v-model="form.hours[day.value].start" class="time-input" />
-            <span class="sep">–</span>
-            <input type="time" v-model="form.hours[day.value].end"   class="time-input" />
-          </template>
-          <span v-else class="closed-lbl">Closed</span>
+        <h3 class="sec-title">Operating Hours</h3>
+        <div class="hours-grid">
+          <div v-for="day in DAYS" :key="day.value" class="day-row">
+            <label class="day-toggle">
+              <AppCheckbox v-model="form.hours[day.value].open" />
+              <span class="day-label">{{ day.label }}</span>
+            </label>
+            <div v-if="form.hours[day.value].open" class="time-inputs">
+              <div class="time-field">
+                <span class="time-label">Open</span>
+                <input type="time" v-model="form.hours[day.value].start" class="time-input" />
+              </div>
+              <span class="time-sep">–</span>
+              <div class="time-field">
+                <span class="time-label">Close</span>
+                <input type="time" v-model="form.hours[day.value].end" class="time-input" />
+              </div>
+            </div>
+            <span v-else class="closed-label">Closed</span>
+          </div>
+          <p v-if="errors.hours" v-for="(msg, i) in errors.hours.split('\n')" :key="i" class="field-error">{{ msg }}</p>
         </div>
       </AppCard>
 
@@ -50,7 +58,7 @@
       @confirm="logout"
       @cancel="confirmLogout = false"
     />
-  </PageLayout>
+  </DashboardLayout>
 </template>
 
 <script setup>
@@ -59,7 +67,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { updateClinic }  from '@/firebase/firestore.js'
 import { DISTRICTS, DAYS } from '@/constants/index.js'
-import PageLayout      from '@/components/layout/PageLayout.vue'
 import AppCard         from '@/components/base/AppCard.vue'
 import AppInput        from '@/components/base/AppInput.vue'
 import AppSelect       from '@/components/base/AppSelect.vue'
@@ -67,6 +74,7 @@ import AppCheckbox     from '@/components/base/AppCheckbox.vue'
 import AppButton       from '@/components/base/AppButton.vue'
 import AlertBanner     from '@/components/shared/AlertBanner.vue'
 import ConfirmDialog   from '@/components/shared/ConfirmDialog.vue'
+import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -90,7 +98,7 @@ const form = reactive({
   name: '', email: '', contactNumber: '', address: '', postalCode: '', district: '',
   hours: defaultHours(),
 })
-const errors = reactive({ name: '', address: '', postalCode: '', district: '' })
+const errors = reactive({ name: '', address: '', postalCode: '', district: '', hours: '' })
 
 // Validates required fields and postal code format
 function validate() {
@@ -101,6 +109,27 @@ function validate() {
   if (!form.postalCode.trim()) { errors.postalCode = 'Postal code is required'; ok = false }
   else if (!/^\d{6}$/.test(form.postalCode)) { errors.postalCode = 'Must be 6 digits'; ok = false }
   if (!form.district)          { errors.district  = 'District is required'; ok = false }
+
+  errors.hours = ''
+  const openDays = DAYS.filter(d => form.hours[d.value].open)
+  if (openDays.length === 0) {
+    errors.hours = 'Please set at least one open day'
+    ok = false
+  } else {
+    const hourErrors = []
+    for (const d of openDays) {
+      const h = form.hours[d.value]
+      if (!h.start || !h.end) {
+        hourErrors.push(`Please set opening and closing times for ${d.label}`)
+        ok = false
+      } else if (h.start >= h.end) {
+        hourErrors.push(`${d.label}: Closing time must be after opening time`)
+        ok = false
+      }
+    }
+    if (hourErrors.length > 0) errors.hours = hourErrors.join('\n')
+  }
+
   return ok
 }
 
@@ -112,11 +141,11 @@ async function save() {
   saved.value = false
   try {
     await updateClinic(authStore.clinicId, {
-      name:          form.name.trim(),
-      address:       form.address.trim(),
-      postalCode:    form.postalCode.trim(),
-      district:      form.district,
-      openingHours:  form.hours,
+      name:            form.name.trim(),
+      address:         form.address.trim(),
+      postalCode:      form.postalCode.trim(),
+      district:        form.district,
+      operatingHours:  form.hours,
     })
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
@@ -145,10 +174,11 @@ watch(
       form.address       = c.address       || ''
       form.postalCode    = c.postalCode    || ''
       form.district      = c.district      || ''
-      if (c.openingHours) {
+      const storedHours = c.operatingHours || c.openingHours
+      if (storedHours) {
         DAYS.forEach(d => {
-          if (c.openingHours[d.value]) {
-            form.hours[d.value] = { ...c.openingHours[d.value] }
+          if (storedHours[d.value]) {
+            form.hours[d.value] = { ...storedHours[d.value] }
           }
         })
       }
@@ -159,14 +189,114 @@ watch(
 </script>
 
 <style scoped>
-.profile-form { display: flex; flex-direction: column; gap: 1rem; }
-.section-card { padding: 1.25rem; display: flex; flex-direction: column; gap: .875rem; }
-.sec-title    { font-size: 1rem; font-weight: 700; color: #1f2937; margin: 0; }
+.profile-form { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1rem; 
+}
 
-.hours-row   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid #f3f4f6; }
-.day-label   { width: 5.5rem; font-size: .875rem; font-weight: 600; color: #374151; flex-shrink: 0; }
-.open-toggle { display: flex; align-items: center; gap: .35rem; font-size: .8rem; color: #6b7280; cursor: pointer; flex-shrink: 0; }
-.time-input  { padding: .35rem .5rem; border: 1.5px solid #d1d5db; border-radius: 6px; font-size: .8rem; color: #1f2937; }
-.sep         { font-size: .8rem; color: #6b7280; }
-.closed-lbl  { font-size: .8rem; color: #9ca3af; }
+.section-card { 
+  padding: 1.75rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: .875rem; 
+}
+
+.sec-title { 
+  font-size: 1.25rem; 
+  font-weight: 700; 
+  color: #1f2937; 
+  margin: 0;
+}
+
+.section-card > :last-child {
+  margin-bottom: 0;
+}
+
+.hours-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: .75rem;
+  padding: 0;
+  background: transparent;
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: .6rem .25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.day-row:last-child {
+  border-bottom: none;
+}
+
+.day-toggle {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  cursor: pointer;
+  min-width: 110px;
+}
+
+.day-label {
+  font-size: .875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.time-field {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.time-label {
+  font-size: .75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.time-input {
+  padding: .3rem .5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .4rem;
+  font-size: .82rem;
+  color: #1f2937;
+  background: white;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.time-input:focus {
+  border-color: #3b82f6;
+}
+
+.time-sep {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.closed-label { 
+  font-size: .8rem; 
+  color: #9ca3af; 
+}
+
+.field-error {
+  font-size: .8rem;
+  color: #ef4444;
+  margin: .25rem 0rem;
+
+}
 </style>

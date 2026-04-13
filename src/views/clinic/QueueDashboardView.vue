@@ -27,14 +27,14 @@
 
         <AppCard class="status-card">
           <span class="status-label">Clinic Status:</span>
-          <AppBadge class="status-badge" :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
+          <AppBadge :variant="authStore.clinic?.isOpen ? 'open' : 'closed'">
             {{ authStore.clinic?.isOpen ? 'OPEN' : 'CLOSED' }}
           </AppBadge>
 
           <AppButton
             v-if="!authStore.clinic?.isOpen"
             variant="primary"
-            size="xs"
+            size="sm"
             :disabled="togglingStatus"
             @click="toggleClinicStatus(true)"
           >
@@ -44,7 +44,7 @@
           <AppButton
             v-else
             variant="danger"
-            size="xs"
+            size="sm"
             :disabled="togglingStatus"
             @click="toggleClinicStatus(false)"
           >
@@ -115,7 +115,7 @@
         </div>
         <div class="d-row">
           <span>Status</span>
-          <span>{{ detailTicket.status }}</span>
+          <span>{{ statusLabel(detailTicket.status) }}</span>
         </div>
         <div class="d-row">
           <span>Joined</span>
@@ -249,6 +249,18 @@ function openDetail(ticket) {
   detailTicket.value = ticket
 }
 
+const labels = {
+  waiting: 'Waiting',
+  serving: 'Serving',
+  completed: 'Completed',
+  'no-show': 'No Show',
+  cancelled: 'Cancelled'
+}
+
+function statusLabel(status) {
+  return labels[status] || status
+}
+
 async function toggleClinicStatus(open) {
   confirmAction.value = open ? 'open' : 'close'
   showConfirmDialog.value = true
@@ -273,6 +285,7 @@ async function confirmToggleClinicStatus() {
 }
 
 async function updateStatus({ ticketId, status }) {
+  console.log('[clinic] updating ticket:', ticketId, 'to status:', status)
   await queueStore.updateStatus(ticketId, status)
 }
 
@@ -351,10 +364,10 @@ onUnmounted(() => {
 
 .status-card {
   display: flex;
-  flex-direction: row;
-  gap: 1rem;
   align-items: center;
+  gap: 0.75rem;
   padding: 0.75rem 1.25rem;
+  flex-shrink: 0;
 }
 
 .status-label {
@@ -362,17 +375,6 @@ onUnmounted(() => {
   color: #4b5563;
   font-size: 0.9rem;
   white-space: nowrap;
-}
-
-.status-badge {
-  font-size: 1.5rem !important;
-  font-weight: 700 !important;
-  padding: 0.5rem 1rem !important;
-}
-
-.status-card :deep(.app-button) {
-  padding: 0.35rem 0.75rem !important;
-  font-size: 0.75rem !important;
 }
 
 .custom-dropdown {
@@ -469,7 +471,8 @@ onUnmounted(() => {
 }
 
 .queue-table-card {
-  padding: 1.25rem;
+  padding: 1.25rem 2rem;
+  margin-top: -3.8rem;
 }
 
 .table-header {
@@ -480,7 +483,7 @@ onUnmounted(() => {
 }
 
 .table-title {
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;

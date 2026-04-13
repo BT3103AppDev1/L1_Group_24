@@ -5,12 +5,12 @@
       <!-- Personal information form fields -->
       <AppCard class="section-card">
         <h3 class="sec-title">Personal Information</h3>
-        <AppInput v-model="form.fullName" label="Full Name" :error="errors.fullName" required />
-        <AppInput v-model="form.email" label="Email Address" type="email" disabled />
+        <AppInput v-model="form.fullName" label="Full Name" :error="errors.fullName" />
+        <AppInput v-model="form.email" label="Email Address🔒" type="email" disabled />
         <AppInput v-model="form.mobileNumber" label="Mobile Number" placeholder="e.g. 91234567"
-          :error="errors.mobileNumber" required />
+          :error="errors.mobileNumber" />
         <AppInput v-model="form.postalCode" label="Residential Postal Code" placeholder="e.g. 123456"
-          :error="errors.postalCode" required />
+          :error="errors.postalCode" />
       </AppCard>
 
       <!-- Error and success feedback banners -->
@@ -115,16 +115,20 @@ watch(
 }
 
 .section-card {
-  padding: 1.25rem;
+  padding: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: .875rem;
 }
 
 .sec-title {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 .25rem;
+  margin: 0 0 .5rem;
+}
+
+.section-card :deep(.app-input:last-child) {
+  margin-bottom: 0.25rem;
 }
 </style>

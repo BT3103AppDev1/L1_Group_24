@@ -117,11 +117,6 @@ const inputId = computed(() => props.id || `app-input-pw-${Math.random().toStrin
   padding-right: 72px;
 }
 
-.app-input-pw__field::placeholder {
-  color: #94a3b8;
-  letter-spacing: 0.05em;
-}
-
 .app-input-pw--disabled .app-input-pw__field {
   background-color: rgba(255, 255, 255, 0.55);
   color: #94a3b8;
@@ -156,5 +151,10 @@ const inputId = computed(() => props.id || `app-input-pw-${Math.random().toStrin
 .app-input-pw__toggle:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.form-control--error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 </style>
