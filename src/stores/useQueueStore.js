@@ -25,7 +25,8 @@ export const useQueueStore = defineStore('queue', {
     clinicTickets: [],     // The large list of all patient tickets (Used by the clinic dashboard)
     loading: false,        // Visual loader indicator for database operations
     ticketChecked: false,
-    ticketUnsubscribe: null
+    ticketUnsubscribe: null,
+    clinicUnsubscribes: [] // All active clinic-side listeners, cleared on logout
   }),
 
   // --- Getters ---
@@ -108,13 +109,28 @@ export const useQueueStore = defineStore('queue', {
      * The `onFirst` callback is fired only once when the initial data loads.
      */
     subscribeToClinicService(clinicId, serviceId, onFirst) {
-      subscribeToClinicServiceTickets(clinicId, serviceId, (tickets) => {
+      const unsubscribe = subscribeToClinicServiceTickets(clinicId, serviceId, (tickets) => {
         this.clinicTickets = tickets
         if (onFirst) {
           onFirst(tickets)
           onFirst = null // only fire once to prevent repetitive spinner flashing
         }
       })
+      // Track so we can detach all clinic listeners on logout
+      this.clinicUnsubscribes.push(unsubscribe)
+      return unsubscribe
+    },
+
+    /**
+     * Detaches every active clinic-side listener. Must be called before logout
+     * so Firestore doesn't throw permission errors after the user signs out.
+     */
+    stopAllClinicSubscriptions() {
+      this.clinicUnsubscribes.forEach((u) => {
+        try { u && u() } catch (e) { console.warn('[useQueueStore] unsubscribe failed:', e) }
+      })
+      this.clinicUnsubscribes = []
+      this.clinicTickets = []
     },
 
     /**
