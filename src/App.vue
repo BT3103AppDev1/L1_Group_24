@@ -27,6 +27,7 @@ const navPortal = computed(() => {
 
 // logout handler in NavBar
 async function handleLogout() {
+  queueStore.unsubscribeClinic?.()
   queueStore.resetTicketState()
   await authStore.logoutUser()
   router.push('/')

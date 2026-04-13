@@ -181,6 +181,13 @@ async function handleJoinQueue() {
     return
   }
 
+  // block unverified email/password users
+  const isOAuth = authStore.user?.providerData?.some(p => p.providerId !== 'password')
+  if (!isOAuth && !authStore.user?.emailVerified) {
+    joinError.value = 'Please verify your email before joining a queue.'
+    return
+  }
+
   joining.value = true
   joinError.value = ''
 

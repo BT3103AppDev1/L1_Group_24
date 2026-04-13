@@ -8,7 +8,6 @@
     </div>
 
     <div v-else class="dashboard">
-
       <!-- Active Queue Card: displayed when the patient is currently in a queue -->
       <template v-if="queueStore.isInQueue">
         <AppCard class="queue-card">

@@ -8,7 +8,9 @@ import {
     confirmPasswordReset as firebaseConfirmPasswordReset,
     onAuthStateChanged,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    sendEmailVerification,
+    reload
   } from 'firebase/auth'
 import { auth } from './config.js'
 
@@ -81,4 +83,23 @@ export function onAuthChange(callback) {
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider()
   return signInWithPopup(auth, provider)
+}
+
+// Email Verification
+export async function sendVerificationEmail(user = auth.currentUser) {
+  if (!user) {
+    console.warn('[auth] cannot send verification email: no authenticated user available')
+    return
+  }
+
+  try {
+    // Reload user first to refresh the token
+    await reload(user)
+    console.log('[auth] sending verification email to:', user.email)
+    await sendEmailVerification(user)
+    console.log('[auth] verification email sent')
+  } catch (err) {
+    console.error('[auth] failed to send verification email:', err)
+    throw err
+  }
 }

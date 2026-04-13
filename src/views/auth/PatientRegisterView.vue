@@ -103,7 +103,7 @@ async function submit() {
             postalCode: form.postalCode.trim(),
             password: form.password,
         })
-        router.push('/login')
+        router.push('/patient/verify-email')
     } catch (e) {
         serverError.value = e.code === 'auth/email-already-in-use'
             ? 'This email is already registered. Please log in.'
