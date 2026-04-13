@@ -24,7 +24,8 @@ export const useQueueStore = defineStore('queue', {
     activeTicket: null,    // The unique ticket object for the currently logged-in patient
     clinicTickets: [],     // The large list of all patient tickets (Used by the clinic dashboard)
     loading: false,        // Visual loader indicator for database operations
-    ticketChecked: false
+    ticketChecked: false,
+    ticketUnsubscribe: null
   }),
 
   // --- Getters ---
@@ -85,14 +86,20 @@ export const useQueueStore = defineStore('queue', {
      * this local state automatically updates.
      */
     subscribeToMyTicket(ticketId) {
-      console.log('[subscribeToMyTicket] subscribing to ticketId:', ticketId)
-      subscribeToTicket(ticketId, (ticket) => {
+      // Clean up any existing listener first
+      if (this.ticketUnsubscribe) {
+        this.ticketUnsubscribe()
+        this.ticketUnsubscribe = null
+      }
+
+      const unsubscribe = subscribeToTicket(ticketId, (ticket) => {
         console.log('[subscribeToMyTicket] ticket update:', ticket?.status, ticket)
         this.activeTicket = ticket
         if (!ticket || ['cancelled', 'completed'].includes(ticket?.status)) {
           localStorage.removeItem('activeTicketId')
         }
       })
+      this.ticketUnsubscribe = unsubscribe
     },
 
     /**
@@ -163,6 +170,10 @@ export const useQueueStore = defineStore('queue', {
     },
 
     resetTicketState() {
+      if (this.ticketUnsubscribe) {
+        this.ticketUnsubscribe()
+        this.ticketUnsubscribe = null
+      }
       this.activeTicket = null
       this.ticketChecked = false
       localStorage.removeItem('activeTicketId')

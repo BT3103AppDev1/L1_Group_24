@@ -26,20 +26,25 @@ const router = createRouter({
     {
       path: '/register',
       name: 'PatientRegister',
-      component: () => import('@/views/patient/RegisterView.vue'),
+      component: () => import('@/views/auth/RegisterView.vue'),
       meta: { guestOnly: true },
     },
     {
       path: '/login',
       name: 'PatientLogin',
-      component: () => import('@/views/public/LoginView.vue'),
+      component: () => import('@/views/auth/LoginView.vue'),
       meta: { guestOnly: true },
      },
      {
       path: '/forgot-password',
       name: 'ForgotPassword',
-      component: () => import('@/views/public/ForgotPasswordView.vue'),
+      component: () => import('@/views/auth/ForgotPasswordView.vue'),
       meta: { guestOnly: true },
+    },
+    { 
+      path: '/patient/complete-profile', 
+      name: 'CompleteProfile', 
+      component: () => import('@/views/auth/CompleteProfileView.vue') 
     },
 
     // Patient Specific views
@@ -65,13 +70,13 @@ const router = createRouter({
     {
       path: '/clinic/register',
       name: 'ClinicRegister',
-      component: () => import('@/views/clinic/ClinicRegisterView.vue'),
+      component: () => import('@/views/auth/ClinicRegisterView.vue'),
       meta: { guestOnly: true },
     },
     {
        path: '/clinic/login',
        name: 'ClinicLogin',
-       component: () => import('@/views/public/LoginView.vue'),
+       component: () => import('@/views/auth/LoginView.vue'),
        meta: { guestOnly: true },
      },
 

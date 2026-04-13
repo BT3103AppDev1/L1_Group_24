@@ -5,7 +5,8 @@ import {
   registerWithEmail,
   loginWithEmail,
   logout,
-  onAuthChange
+  onAuthChange,
+  signInWithGoogle 
 } from '@/firebase/auth.js'
 import {
   createPatient,
@@ -251,6 +252,39 @@ export const useAuthStore = defineStore('auth', {
 
     setClinic(clinic) {
       this.clinic = clinic
+    },
+
+    // Google Login
+    async loginWithOAuth(providerName) {
+      this.loading = true
+      this.isLoggingIn = true
+      localStorage.removeItem('activeTicketId')
+      try {
+        const credential = await signInWithGoogle()
+        const uid = credential.user.uid
+        let patient = await getPatient(uid)
+        const isNewUser = !patient
+        if (!patient) {
+          await createPatient(uid, {
+            fullName: credential.user.displayName || 'Patient',
+            email: credential.user.email || '',
+            mobileNumber: '',
+            postalCode: '',
+          })
+          patient = await getPatient(uid)
+        }
+        this.user = credential.user
+        this.patient = patient
+        this.clinic = null
+        this.role = 'patient'
+        return { isNewUser }
+      } catch (err) {
+        console.error('[AuthStore] OAuth error:', err)
+        throw err
+      } finally {
+        this.loading = false
+        this.isLoggingIn = false
+      }
     },
   }
 })
