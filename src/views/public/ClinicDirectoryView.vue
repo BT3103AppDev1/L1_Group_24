@@ -227,7 +227,7 @@ function viewDetail(clinicId) {
 .page-container {
   max-width: 900px;
   margin: 0 auto;
-  padding-bottom: 4rem;
+  padding-bottom: 1rem;
 }
 
 .card {

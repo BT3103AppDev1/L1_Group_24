@@ -3,7 +3,7 @@
     <div class="container header-inner">
       <RouterLink to="/" class="brand" @click="closeMenu">
         <span class="brand-mark" aria-hidden="true"></span>
-        <span>ClinicQ</span>
+        <span>Clinic Queue</span>
       </RouterLink>
 
       <button

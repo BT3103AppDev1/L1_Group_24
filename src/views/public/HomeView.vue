@@ -50,28 +50,14 @@
       </div>
     </section>
 
-    <!-- Footer section containing brand, copyright information and navigation links -->
-    <footer class="footer">
-      <div class="footer__inner">
-        <span class="footer__brand">Clinic Queue</span>
-        <span class="footer__copy">&copy; {{ currentYear }} Clinic Queue. All rights reserved.</span>
-        <nav class="footer__nav" aria-label="Footer">
-          <router-link to="/clinics">Find a Clinic</router-link>
-          <router-link to="/login">Patient Login</router-link>
-          <router-link to="/clinic/login">Clinic Login</router-link>
-        </nav>
-      </div>
-    </footer>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 
 const router = useRouter()
-const currentYear = computed(() => new Date().getFullYear())
 
 const features = [
   {
@@ -102,7 +88,7 @@ const steps = [
 .home {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 var(--space-md) var(--space-2xl);
+  padding: 0 var(--space-md);
 }
 
 .hero-panel {
@@ -285,47 +271,6 @@ const steps = [
   justify-content: center;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.footer {
-  padding: 0.25rem 0 0;
-}
-
-.footer__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.2rem 0;
-  color: var(--color-text-muted);
-}
-
-.footer__brand {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--color-primary-dark);
-}
-
-.footer__copy,
-.footer__nav a {
-  font-size: 0.9rem;
-}
-
-.footer__nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-}
-
-.footer__nav a {
-  color: var(--color-text-muted);
-  font-weight: 600;
-}
-
-.footer__nav a:hover {
-  color: var(--color-primary);
 }
 
 @media (max-width: 900px) {
