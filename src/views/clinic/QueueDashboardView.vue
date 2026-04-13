@@ -333,7 +333,19 @@ onMounted(async () => {
     await clinicStore.fetchServices()
   }
 
-  services.value = await clinicStore.fetchClinicServices(authStore.clinicId)
+  const clinicServiceIds = authStore.clinic?.services || []
+  if (clinicServiceIds.length > 0) {
+    services.value = clinicServiceIds.map((serviceId) => {
+      const globalService = clinicStore.services.find((svc) => svc.id === serviceId)
+      return {
+        id: serviceId,
+        serviceName: globalService?.name || serviceId,
+      }
+    })
+  } else {
+    // Fallback when the clinic profile has no services list yet
+    services.value = await clinicStore.fetchClinicServices(authStore.clinicId)
+  }
 
   loading.value = false
 

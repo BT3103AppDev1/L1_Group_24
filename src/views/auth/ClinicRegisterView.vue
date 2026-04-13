@@ -13,7 +13,7 @@
                     :error="errors.email" required />
                 <AppInput v-model="form.address" label="Location" placeholder="e.g. 123 Orchard Rd"
                     :error="errors.address" required />
-                <AppInput v-model="form.postalCode" label="Postal Code" placeholder="e.g. 123456"
+                <AppInput v-model="form.postalCode" label="Residential Postal Code" placeholder="e.g. 123456"
                     :error="errors.postalCode" required />
                 <AppSelect v-model="form.district" label="District" :options="districtOptions" :error="errors.district"
                     required />
@@ -74,14 +74,6 @@
             <p class="auth-footer">
                 Already registered? <RouterLink to="/clinic/login">Log in here</RouterLink>
             </p>
-        </template>
-
-        <template v-else>
-            <div class="success-box">
-                <div class="success-icon">✅</div>
-                <h2 class="form-heading">Registration Successful!</h2>
-                <p class="form-sub">Your clinic account has been created. Redirecting to service setup…</p>
-            </div>
         </template>
     </AuthLayout>
 </template>
@@ -228,8 +220,8 @@ async function submit() {
             operatingHours: buildOperatingHours(),
             password: form.password,
         })
-        success.value = true
-        setTimeout(() => router.push('/clinic/dashboard'), 1500)
+        
+        setTimeout(() => router.push('/clinic/verify-email'), 1500)
     } catch (e) {
         serverError.value = e.code === 'auth/email-already-in-use'
             ? 'This email address is already registered.'
@@ -276,16 +268,6 @@ async function submit() {
 .auth-footer a {
     color: #3b82f6;
     font-weight: 600;
-}
-
-.success-box {
-    text-align: center;
-    padding: 1rem 0;
-}
-
-.success-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
 }
 
 .required {

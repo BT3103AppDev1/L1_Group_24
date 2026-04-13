@@ -66,7 +66,7 @@
               <p class="chart-copy">Real-time hourly arrivals based on opening hours.</p>
             </div>
           </div>
-          <div class="chart-shell">
+          <div class="chart-shell" :class="{ 'chart-shell--empty': todayJoins === 0 }">
             <Line
               v-if="todayJoins > 0"
               :data="todayLineChartData"
@@ -928,6 +928,10 @@ onUnmounted(() => {
   border-radius: 0.75rem;
   min-height: 320px;
   width: 100%;
+}
+
+.chart-shell--empty {
+  min-height: unset;
 }
 
 .chart-shell :deep(.empty-state) {

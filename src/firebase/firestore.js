@@ -419,8 +419,9 @@ export async function updateTicketStatus(ticketId, status, extra = {}) {
  * @returns {function} // Unsubscribe function
  */
 export function subscribeToTicket(ticketId, callback) {
-    return onSnapshot(doc(db, 'queueTickets', ticketId), (snap) => {
-        callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+    const ref = doc(db, 'queueTickets', ticketId)
+    return onSnapshot(ref, (snap) => {
+      callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
     })
 }
 
