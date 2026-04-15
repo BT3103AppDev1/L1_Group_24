@@ -13,6 +13,7 @@ import {
   leaveQueue,
   subscribeToTicket,
   subscribeToClinicServiceTickets,
+  subscribeToClinicQueue,
   getPatientActiveTicket,
   getTicket,
   updateTicketStatus
@@ -26,6 +27,8 @@ export const useQueueStore = defineStore('queue', {
     loading: false,        // Visual loader indicator for database operations
     ticketChecked: false,
     ticketUnsubscribe: null,
+    queueUnsubscribe: null, // Listener for the patient's active service queue (live wait time)
+    liveQueue: null,        // Real-time queue subdoc: { activeCount, avgDuration, ... }
     clinicUnsubscribes: [] // All active clinic-side listeners, cleared on logout
   }),
 
@@ -39,6 +42,19 @@ export const useQueueStore = defineStore('queue', {
     isInQueue: (state) =>
       !!state.activeTicket &&
       ['waiting', 'serving'].includes(state.activeTicket.status),
+
+    /**
+     * Live estimated wait time in minutes, derived from the real-time queue subdoc.
+     * activeCount includes the current patient, so (activeCount - 1) = people ahead.
+     * Returns null when the data isn't loaded yet or the patient is already being served.
+     */
+    liveEstimatedWaitMinutes: (state) => {
+      if (!state.activeTicket || state.activeTicket.status !== 'waiting') return null
+      if (!state.liveQueue) return null
+      const ahead = Math.max(0, (state.liveQueue.activeCount ?? 1) - 1)
+      const avgDuration = state.liveQueue.avgDuration ?? 15
+      return ahead * avgDuration
+    },
   },
 
   // --- Actions ---
@@ -95,12 +111,43 @@ export const useQueueStore = defineStore('queue', {
 
       const unsubscribe = subscribeToTicket(ticketId, (ticket) => {
         console.log('[subscribeToMyTicket] ticket update:', ticket?.status, ticket)
+        const prev = this.activeTicket
         this.activeTicket = ticket
+
+        // When ticket first loads (or clinicId/serviceId becomes known), attach queue listener
+        if (ticket && ticket.clinicId && ticket.serviceId) {
+          const changed =
+            prev?.clinicId !== ticket.clinicId || prev?.serviceId !== ticket.serviceId
+          if (!this.queueUnsubscribe || changed) {
+            this.subscribeToLiveQueue(ticket.clinicId, ticket.serviceId)
+          }
+        }
+
         if (!ticket || ['cancelled', 'completed'].includes(ticket?.status)) {
           localStorage.removeItem('activeTicketId')
+          this.stopLiveQueueSubscription()
         }
       })
       this.ticketUnsubscribe = unsubscribe
+    },
+
+    /** Subscribes to the clinic queue subdoc for live activeCount / avgDuration. */
+    subscribeToLiveQueue(clinicId, serviceId) {
+      if (this.queueUnsubscribe) {
+        this.queueUnsubscribe()
+        this.queueUnsubscribe = null
+      }
+      this.queueUnsubscribe = subscribeToClinicQueue(clinicId, serviceId, (queue) => {
+        this.liveQueue = queue
+      })
+    },
+
+    stopLiveQueueSubscription() {
+      if (this.queueUnsubscribe) {
+        this.queueUnsubscribe()
+        this.queueUnsubscribe = null
+      }
+      this.liveQueue = null
     },
 
     /**
@@ -190,6 +237,7 @@ export const useQueueStore = defineStore('queue', {
         this.ticketUnsubscribe()
         this.ticketUnsubscribe = null
       }
+      this.stopLiveQueueSubscription()
       this.activeTicket = null
       this.ticketChecked = false
       localStorage.removeItem('activeTicketId')

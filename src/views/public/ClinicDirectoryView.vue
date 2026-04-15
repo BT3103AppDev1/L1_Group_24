@@ -82,7 +82,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppBadge from '@/components/base/AppBadge.vue'
-import { subscribeToAllClinics, getAllServices, getClinicServices } from '@/firebase/firestore'
+import { subscribeToAllClinics, getAllServices, subscribeToClinicQueues } from '@/firebase/firestore'
 import { geocodePostalCode, getUserLocation, haversineKm } from '@/utils/geo.js'
 
 const router = useRouter()
@@ -97,6 +97,8 @@ const clinics = ref([])
 const userLocation = ref(null)
 const loading = ref(true)
 let clinicsUnsubscribe = null
+// Per-clinic queue subscriptions: clinicId → unsubscribe fn
+const queueUnsubscribes = new Map()
 
 onMounted(async () => {
   try {
@@ -109,18 +111,40 @@ onMounted(async () => {
     ])
 
     clinicsUnsubscribe = subscribeToAllClinics((data) => {
-      // Initial population — distance and waitTime get filled in asynchronously
+      // Preserve existing distance/waitTime when a clinic profile update fires
+      const existing = new Map(clinics.value.map((c) => [c.id, c]))
       clinics.value = data.map((c) => ({
         ...c,
         clinicName: c.clinicName || 'Unnamed Clinic',
         district: c.district || 'Unknown District',
         services: c.services || [],
         operatingHours: c.operatingHours || {},
-        distance: null,
-        waitTime: 0,
+        distance: existing.get(c.id)?.distance ?? null,
+        waitTime: existing.get(c.id)?.waitTime ?? 0,
       }))
       loading.value = false
-      enrichClinics(data)
+
+      // Reconcile per-clinic queue subscriptions
+      const incoming = new Set(data.map((c) => c.id))
+      // Remove subscriptions for clinics no longer in the list
+      for (const [id, unsub] of queueUnsubscribes) {
+        if (!incoming.has(id)) { unsub(); queueUnsubscribes.delete(id) }
+      }
+      // Add subscriptions for new clinics
+      for (const c of data) {
+        if (!queueUnsubscribes.has(c.id)) {
+          const unsub = subscribeToClinicQueues(c.id, (queues) => {
+            const waitTime = queues.reduce((max, q) => {
+              return Math.max(max, (q.activeCount || 0) * (q.avgDuration || 15))
+            }, 0)
+            const idx = clinics.value.findIndex((x) => x.id === c.id)
+            if (idx >= 0) clinics.value[idx] = { ...clinics.value[idx], waitTime }
+          })
+          queueUnsubscribes.set(c.id, unsub)
+        }
+      }
+
+      enrichDistances(data)
     })
     setTimeout(() => { loading.value = false }, 5000)
   } catch (err) {
@@ -129,16 +153,18 @@ onMounted(async () => {
   }
 })
 
-// Resolves each clinic's real distance and wait time and writes it back into the reactive list
-async function enrichClinics(data) {
+// Resolves each clinic's distance and writes it back — wait time is now handled by live subscriptions
+async function enrichDistances(data) {
   for (const c of data) {
-    // Prefer stored lat/lng; fall back to geocoding the postal code
+    // Skip if distance is already known (avoid redundant geocoding on profile re-fires)
+    const current = clinics.value.find((x) => x.id === c.id)
+    if (current?.distance != null) continue
+
     let coords = c.lat != null && c.lng != null ? { lat: c.lat, lng: c.lng } : null
     if (!coords && c.postalCode) {
       coords = await geocodePostalCode(c.postalCode)
     }
 
-    // Real distance only if we know both ends
     let distance = null
     if (userLocation.value && coords) {
       distance = haversineKm(
@@ -149,28 +175,15 @@ async function enrichClinics(data) {
       )
     }
 
-    // Longest live wait across this clinic's queues (activeCount * avgDuration)
-    let waitTime = 0
-    try {
-      const queues = await getClinicServices(c.id)
-      for (const q of queues) {
-        const w = (q.activeCount || 0) * (q.avgDuration || 15)
-        if (w > waitTime) waitTime = w
-      }
-    } catch (e) {
-      console.warn('[ClinicDirectory] failed to load queues for', c.id, e)
-    }
-
-    // Merge enriched fields back in-place
     const idx = clinics.value.findIndex((x) => x.id === c.id)
-    if (idx >= 0) {
-      clinics.value[idx] = { ...clinics.value[idx], distance, waitTime }
-    }
+    if (idx >= 0) clinics.value[idx] = { ...clinics.value[idx], distance }
   }
 }
 
 onUnmounted(() => {
   if (clinicsUnsubscribe) clinicsUnsubscribe()
+  for (const unsub of queueUnsubscribes.values()) unsub()
+  queueUnsubscribes.clear()
 })
 
 const districts = computed(() => {

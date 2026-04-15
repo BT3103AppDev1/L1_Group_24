@@ -19,6 +19,13 @@
           <div class="ticket-number">{{ activeTicket.ticketNumber }}</div>
           <p class="service-name">{{ serviceName }}</p>
 
+          <div v-if="activeTicket.status === 'waiting'" class="wait-time">
+            <span class="wait-time-label">Estimated wait</span>
+            <span class="wait-time-value">
+              {{ estimatedWaitLabel }}
+            </span>
+          </div>
+
           <AlertBanner v-if="activeTicket.status === 'serving'" type="info"
             message="It's your turn! Please proceed to the counter." />
           <AlertBanner v-if="activeTicket.status === 'completed'" type="success"
@@ -81,6 +88,17 @@ const recentRecords = ref([])     // list of recent consultation records
 const activeTicket = computed(() => queueStore.activeTicket)
 const clinicName = computed(() => activeTicket.value?.clinicName || '')
 const serviceName = computed(() => activeTicket.value?.serviceName || '')
+
+// Live estimated wait time label shown while the patient is waiting
+const estimatedWaitLabel = computed(() => {
+  const mins = queueStore.liveEstimatedWaitMinutes
+  if (mins === null) return '—'
+  if (mins === 0) return 'Less than 1 min'
+  if (mins < 60) return `~${mins} min`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m > 0 ? `~${h}h ${m}min` : `~${h}h`
+})
 
 // Maps ticket status to CSS class for badge styling
 const ticketStatusClass = computed(() => ({
@@ -191,6 +209,33 @@ onMounted(async () => {
   font-size: .9rem;
   color: #6b7280;
   margin-bottom: 1.25rem;
+}
+
+.wait-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  margin-bottom: 1rem;
+  padding: .6rem 1rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: .75rem;
+}
+
+.wait-time-label {
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #0369a1;
+}
+
+.wait-time-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0c4a6e;
+  line-height: 1.2;
 }
 
 .queue-actions {
