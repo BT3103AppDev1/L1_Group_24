@@ -89,7 +89,7 @@
         <div class="analytics-header split-header">
           <div>
             <h2 class="section-title">Past Analytics</h2>
-            <p class="section-desc">Historical queue trends and service breakdowns.</p>
+            <p class="section-desc">Historical queue trends and service distributions.</p>
           </div>
           <div class="analytics-controls">
             <div class="toggle-group">
@@ -147,17 +147,17 @@
 
         <section class="small-metrics-grid mb-8">
           <AppCard class="metric-card small-metric-card completed-tint" flat>
-            <p class="metric-label">Avg Completed</p>
+            <p class="metric-label">Average Completed</p>
             <p class="metric-value">{{ pastAverageCompleted }}</p>
             <p class="metric-meta">Completed per day</p>
           </AppCard>
           <AppCard class="metric-card small-metric-card no-show-tint" flat>
-            <p class="metric-label">Avg No Shows</p>
+            <p class="metric-label">Average No Shows</p>
             <p class="metric-value">{{ pastAverageNoShow }}</p>
             <p class="metric-meta">No shows per day</p>
           </AppCard>
           <AppCard class="metric-card small-metric-card cancelled-tint" flat>
-            <p class="metric-label">Avg Cancellations</p>
+            <p class="metric-label">Average Cancellations</p>
             <p class="metric-value">{{ pastAverageCancelled }}</p>
             <p class="metric-meta">Cancellations per day</p>
           </AppCard>
@@ -176,7 +176,7 @@
             <AppCard class="chart-card">
               <div class="chart-header">
                 <div>
-                  <h3 class="chart-title">Avg Daily Volume by Hours</h3>
+                  <h3 class="chart-title">Average Daily Volume by Hours</h3>
                   <p class="chart-copy">When patients arrived during the day.</p>
                 </div>
               </div>
@@ -193,8 +193,8 @@
             <AppCard class="chart-card">
               <div class="chart-header">
                 <div>
-                  <h3 class="chart-title">Service Proportion</h3>
-                  <p class="chart-copy">Breakdown of services joined.</p>
+                  <h3 class="chart-title">Service Distribution</h3>
+                  <p class="chart-copy">Distribution of patients across medical services.</p>
                 </div>
               </div>
               <div class="chart-shell pie-shell">
