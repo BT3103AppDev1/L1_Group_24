@@ -152,6 +152,20 @@ export async function updateClinic(uid, data) {
 }
 
 /**
+ * Real-time watcher for a single clinic service queue sub-document.
+ * Used by patients to get live activeCount and avgDuration for wait-time estimates.
+ * @param {string} clinicId
+ * @param {string} serviceId
+ * @param {function} callback
+ * @returns {function} Unsubscribe function
+ */
+export function subscribeToClinicQueue(clinicId, serviceId, callback) {
+  return onSnapshot(doc(db, 'clinics', clinicId, 'queues', serviceId), (snap) => {
+    callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+  })
+}
+
+/**
  * Watches to all clinic documents in real time
  * @param {function} callback
  * @returns {function}
@@ -419,8 +433,9 @@ export async function updateTicketStatus(ticketId, status, extra = {}) {
  * @returns {function} // Unsubscribe function
  */
 export function subscribeToTicket(ticketId, callback) {
-    return onSnapshot(doc(db, 'queueTickets', ticketId), (snap) => {
-        callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+    const ref = doc(db, 'queueTickets', ticketId)
+    return onSnapshot(ref, (snap) => {
+      callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
     })
 }
 

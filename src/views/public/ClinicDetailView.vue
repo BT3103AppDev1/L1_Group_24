@@ -51,7 +51,7 @@
           👆 Select a service above, then click Join Queue.
         </p>
 
-        <p v-if="selectedServiceId" class="selected-note">
+        <p v-if="selectedServiceId && isOpen" class="selected-note">
           Joining: <strong>{{ serviceName(selectedServiceId) }}</strong>
         </p>
 

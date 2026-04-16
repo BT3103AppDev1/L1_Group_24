@@ -4,7 +4,7 @@
       <div class="auth-brand">
         <RouterLink to="/" class="brand-link">
           <span class="brand-icon" aria-hidden="true"></span>
-          <span class="brand-name">ClinicQ</span>
+          <span class="brand-name">Clinic Queue</span>
         </RouterLink>
         <p class="brand-copy">Smart queueing for patients and clinics.</p>
       </div>

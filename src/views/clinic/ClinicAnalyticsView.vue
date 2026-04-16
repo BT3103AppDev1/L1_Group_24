@@ -66,7 +66,7 @@
               <p class="chart-copy">Real-time hourly arrivals based on opening hours.</p>
             </div>
           </div>
-          <div class="chart-shell">
+          <div class="chart-shell" :class="{ 'chart-shell--empty': todayJoins === 0 }">
             <Line
               v-if="todayJoins > 0"
               :data="todayLineChartData"
@@ -297,31 +297,7 @@ function formatHourLabel(hour) {
   return `${normalized} ${suffix}`
 }
 
-function parseTimeToMinutes(value) {
-  const [hours, minutes] = (value || '00:00').split(':').map(Number)
-  return hours * 60 + (minutes || 0)
-}
 
-function isUsableHours(entry) {
-  return (
-    !!entry?.start &&
-    !!entry?.end &&
-    parseTimeToMinutes(entry.end) > parseTimeToMinutes(entry.start)
-  )
-}
-
-// Clinic Hours Fallback checking
-const clinicOperatingHours = computed(() => authStore.clinic?.operatingHours || {})
-const clinicOpeningHours = computed(() => authStore.clinic?.openingHours || {})
-
-const fallbackClinicHours = computed(() => {
-  const openingMatch = Object.values(clinicOpeningHours.value).find((entry) => isUsableHours(entry))
-  if (openingMatch) return openingMatch
-  const operatingMatch = Object.values(clinicOperatingHours.value).find((entry) =>
-    isUsableHours(entry),
-  )
-  return operatingMatch || null
-})
 
 // === DAILY ANALYTICS (TODAY) ===
 const todayJoins = computed(() => {
@@ -379,15 +355,15 @@ const pastAverageCancelled = computed(() => {
 
 const todayLineChartData = computed(() => {
   const counts = todayHourlyActivity.value?.hourlyCounts || []
-  let startHour = 8
-  let endHour = 20
+  let startHour = 9
+  let endHour = 18
 
-  const fallback = fallbackClinicHours.value
-  if (fallback && isUsableHours(fallback)) {
-    startHour = Math.floor(parseTimeToMinutes(fallback.start) / 60)
-    startHour = Math.max(0, startHour - 1) // pad open hour start
-    endHour = Math.ceil(parseTimeToMinutes(fallback.end) / 60)
-  }
+  counts.forEach((c) => {
+    if (c.count > 0) {
+      if (c.hour < startHour) startHour = c.hour
+      if (c.hour > endHour) endHour = c.hour
+    }
+  })
 
   const filtered = counts.filter((c) => c.hour >= startHour && c.hour <= endHour)
 
@@ -497,15 +473,15 @@ const pastPeakHourMeta = computed(() => {
 })
 
 const pastLineChartData = computed(() => {
-  let startHour = 8
-  let endHour = 20
+  let startHour = 9
+  let endHour = 18
 
-  const fallback = fallbackClinicHours.value
-  if (fallback && isUsableHours(fallback)) {
-    startHour = Math.floor(parseTimeToMinutes(fallback.start) / 60)
-    startHour = Math.max(0, startHour - 1)
-    endHour = Math.ceil(parseTimeToMinutes(fallback.end) / 60)
-  }
+  pastHourlyData.value.forEach((count, hour) => {
+    if (count > 0) {
+      if (hour < startHour) startHour = hour
+      if (hour > endHour) endHour = hour
+    }
+  })
 
   const labels = []
   const data = []
@@ -839,27 +815,27 @@ onUnmounted(() => {
 }
 
 .metric-card.completed-tint {
-  background-color: rgba(16, 185, 129, 0.08);
+  background-color: rgba(16, 185, 129, 0.15);
 }
 
 .metric-card.completed-tint .metric-value {
-  color: #10b981;
+  color: #059669;
 }
 
 .metric-card.no-show-tint {
-  background-color: rgba(239, 68, 68, 0.08);
+  background-color: rgba(225, 29, 72, 0.12);
 }
 
 .metric-card.no-show-tint .metric-value {
-  color: #b91c1c;
+  color: #e11d48;
 }
 
 .metric-card.cancelled-tint {
-  background-color: #f1f5f9;
+  background-color: rgba(245, 158, 11, 0.15);
 }
 
 .metric-card.cancelled-tint .metric-value {
-  color: #64748b;
+  color: #d97706;
 }
 
 .metric-label {
@@ -928,6 +904,10 @@ onUnmounted(() => {
   border-radius: 0.75rem;
   min-height: 320px;
   width: 100%;
+}
+
+.chart-shell--empty {
+  min-height: unset;
 }
 
 .chart-shell :deep(.empty-state) {

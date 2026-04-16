@@ -5,12 +5,13 @@ import {
   registerWithEmail,
   loginWithEmail,
   logout,
-  onAuthChange
+  onAuthChange,
+  signInWithGoogle,
+  sendVerificationEmail 
 } from '@/firebase/auth.js'
 import {
   createPatient,
   getPatient,
-  createClinic,
   getClinic,
 } from '@/firebase/firestore.js'
 import { geocodePostalCode } from '@/utils/geo.js'
@@ -24,6 +25,9 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     initialized: false,
     isLoggingIn: false,
+    pendingPatientData: null,
+    pendingClinicData: null,
+    pendingPassword: null
   }),
 
   getters: {
@@ -89,14 +93,19 @@ export const useAuthStore = defineStore('auth', {
         const credential = await registerWithEmail(email, password)
         const uid = credential.user.uid
 
-        await createPatient(uid, { fullName, email, mobileNumber, postalCode })
+        // Store registration data temporarily — don't create Firestore profile yet
+        this.pendingPatientData = { fullName, email, mobileNumber, postalCode }
+        this.pendingPassword = password
 
         const patient = await getPatient(uid)
 
         this.user    = credential.user
-        this.patient = patient
+        this.patient = null
         this.clinic  = null
-        this.role    = 'patient'
+        this.role    = null
+
+        // Send verification email after registration
+        await sendVerificationEmail(credential.user)
       } catch (err) {
         console.error('[AuthStore] registerPatient error:', err)
         throw err
@@ -164,24 +173,23 @@ export const useAuthStore = defineStore('auth', {
           console.warn('[AuthStore] geocode failed, clinic saved without coords:', e)
         }
 
-        await createClinic(uid, {
-          clinicName,
-          district,
-          address,
-          postalCode,
-          contactNumber,
-          email,
+        // Store registration data temporarily — don't create Firestore profile yet
+        this.pendingClinicData = {
+          clinicName, district, address, postalCode,
+          contactNumber, email,
           operatingHours: operatingHours || {},
           services: services || [],
           ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
-        })
-
-        const clinic = await getClinic(uid)
+        }
+        this.pendingPassword = password
 
         this.user = credential.user
-        this.clinic = clinic
+        this.clinic = null
         this.patient = null
-        this.role = 'clinic'
+        this.role = null
+
+        // Send verification email after clinic registration
+        await sendVerificationEmail(credential.user)
       } catch (err) {
         console.error('[AuthStore] registerClinic error:', err)
         throw err
@@ -193,6 +201,7 @@ export const useAuthStore = defineStore('auth', {
     // sign in an existing clinic
     async loginClinic({ email, password }) {
       this.loading = true
+      this.isLoggingIn = true
       localStorage.removeItem('activeTicketId')
       try {
         const credential = await loginWithEmail(email, password)
@@ -226,6 +235,16 @@ export const useAuthStore = defineStore('auth', {
     async logoutUser() {
       this.loading = true
       localStorage.removeItem('activeTicketId')
+
+      // Detach queue listeners before signing out so Firestore doesn't
+      // throw permission errors once auth is gone
+      try {
+        const { useQueueStore } = await import('@/stores/useQueueStore.js')
+        useQueueStore().stopAllClinicSubscriptions()
+      } catch (e) {
+        console.warn('[AuthStore] failed to stop queue subscriptions:', e)
+      }
+
       try {
         await logout()
         this.user = null
@@ -251,6 +270,39 @@ export const useAuthStore = defineStore('auth', {
 
     setClinic(clinic) {
       this.clinic = clinic
+    },
+
+    // Google Login
+    async loginWithOAuth(providerName) {
+      this.loading = true
+      this.isLoggingIn = true
+      localStorage.removeItem('activeTicketId')
+      try {
+        const credential = await signInWithGoogle()
+        const uid = credential.user.uid
+        let patient = await getPatient(uid)
+        const isNewUser = !patient
+        if (!patient) {
+          await createPatient(uid, {
+            fullName: credential.user.displayName || 'Patient',
+            email: credential.user.email || '',
+            mobileNumber: '',
+            postalCode: '',
+          })
+          patient = await getPatient(uid)
+        }
+        this.user = credential.user
+        this.patient = patient
+        this.clinic = null
+        this.role = 'patient'
+        return { isNewUser }
+      } catch (err) {
+        console.error('[AuthStore] OAuth error:', err)
+        throw err
+      } finally {
+        this.loading = false
+        this.isLoggingIn = false
+      }
     },
   }
 })
