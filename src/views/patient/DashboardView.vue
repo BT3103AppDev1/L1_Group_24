@@ -258,7 +258,7 @@ onMounted(async () => {
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-primary-dark);
   margin: 0.5rem;
   margin-bottom: 0;
 }
