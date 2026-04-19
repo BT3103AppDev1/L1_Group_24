@@ -13,6 +13,46 @@
         <AppSelect v-model="form.district"     label="District"       :options="districtOptions" :error="errors.district" required />
       </AppCard>
 
+      <!-- Services offered by this clinic -->
+      <AppCard class="section-card">
+        <h3 class="sec-title">Services Offered</h3>
+        <div v-if="loadingServices" class="services-loading">Loading services…</div>
+        <div v-else class="svc-dropdown" :class="{ open: svcOpen }">
+          <button
+            type="button"
+            class="svc-trigger"
+            :class="{ 'svc-trigger--error': errors.services }"
+            @click="svcOpen = !svcOpen"
+          >
+            <span class="svc-trigger__text">
+              {{ form.services.length === 0 ? 'Select services…' : form.services.length === 1 ? allServices.find(s => s.id === form.services[0])?.name : `${form.services.length} services selected` }}
+            </span>
+            <svg class="svc-trigger__chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <div v-if="svcOpen" class="svc-menu" @click.stop>
+            <label
+              v-for="svc in allServices"
+              :key="svc.id"
+              class="svc-item"
+              :class="{ 'svc-item--selected': form.services.includes(svc.id) }"
+            >
+              <input type="checkbox" class="svc-checkbox" :value="svc.id" :checked="form.services.includes(svc.id)" @change="toggleService(svc.id)" />
+              {{ svc.name }}
+            </label>
+          </div>
+        </div>
+        <!-- Selected tags -->
+        <div v-if="form.services.length > 0 && !loadingServices" class="svc-tags">
+          <span v-for="id in form.services" :key="id" class="svc-tag">
+            {{ allServices.find(s => s.id === id)?.name }}
+            <button type="button" class="svc-tag__remove" @click="toggleService(id)">×</button>
+          </span>
+        </div>
+        <p v-if="errors.services" class="field-error">{{ errors.services }}</p>
+      </AppCard>
+
       <!-- Operating hours per day with toggle and time pickers -->
       <AppCard class="section-card">
         <h3 class="sec-title">Operating Hours</h3>
@@ -62,10 +102,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/useAuthStore.js'
-import { updateClinic }  from '@/firebase/firestore.js'
+import { updateClinic, getAllServices, getClinicServices, saveClinicServices, deleteClinicQueue } from '@/firebase/firestore.js'
 import { DISTRICTS, DAYS } from '@/constants/index.js'
 import AppCard         from '@/components/base/AppCard.vue'
 import AppInput        from '@/components/base/AppInput.vue'
@@ -79,10 +119,19 @@ import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 const router    = useRouter()
 const authStore = useAuthStore()
 
-const saving        = ref(false)
-const saved         = ref(false)
-const serverError   = ref('')
-const confirmLogout = ref(false)
+const saving         = ref(false)
+const saved          = ref(false)
+const serverError    = ref('')
+const confirmLogout  = ref(false)
+const allServices     = ref([])
+const loadingServices = ref(false)
+const svcOpen         = ref(false)
+
+function onClickOutside(e) {
+  if (!e.target.closest('.svc-dropdown')) svcOpen.value = false
+}
+
+onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
 
 // Maps district list to select dropdown options
 const districtOptions = DISTRICTS.map(d => ({ value: d, label: d }))
@@ -97,18 +146,26 @@ function defaultHours() {
 const form = reactive({
   name: '', email: '', contactNumber: '', address: '', postalCode: '', district: '',
   hours: defaultHours(),
+  services: [],
 })
-const errors = reactive({ name: '', address: '', postalCode: '', district: '', hours: '' })
+const errors = reactive({ name: '', address: '', postalCode: '', district: '', hours: '', services: '' })
+
+function toggleService(id) {
+  const idx = form.services.indexOf(id)
+  if (idx === -1) form.services.push(id)
+  else form.services.splice(idx, 1)
+}
 
 // Validates required fields and postal code format
 function validate() {
   let ok = true
-  errors.name = errors.address = errors.postalCode = errors.district = ''
+  errors.name = errors.address = errors.postalCode = errors.district = errors.services = ''
   if (!form.name.trim())       { errors.name      = 'Clinic name is required'; ok = false }
   if (!form.address.trim())    { errors.address   = 'Address is required'; ok = false }
   if (!form.postalCode.trim()) { errors.postalCode = 'Postal code is required'; ok = false }
   else if (!/^\d{6}$/.test(form.postalCode)) { errors.postalCode = 'Must be 6 digits'; ok = false }
   if (!form.district)          { errors.district  = 'District is required'; ok = false }
+  if (form.services.length === 0) { errors.services = 'Please select at least one service'; ok = false }
 
   errors.hours = ''
   const openDays = DAYS.filter(d => form.hours[d.value].open)
@@ -133,19 +190,34 @@ function validate() {
   return ok
 }
 
-// Saves updated clinic profile to Firestore
+// Saves updated clinic profile to Firestore, including service changes
 async function save() {
   if (!validate()) return
   saving.value = true
   serverError.value = ''
   saved.value = false
   try {
-    await updateClinic(authStore.clinicId, {
-      name:            form.name.trim(),
-      address:         form.address.trim(),
-      postalCode:      form.postalCode.trim(),
-      district:        form.district,
-      operatingHours:  form.hours,
+    const clinicId = authStore.clinicId
+
+    // Sync queue sub-documents: add new services, remove deselected ones
+    const currentQueues = await getClinicServices(clinicId)
+    const currentIds = currentQueues.map(q => q.serviceId || q.id)
+    const selectedIds = form.services
+
+    const toAdd = selectedIds.filter(id => !currentIds.includes(id))
+    const toRemove = currentIds.filter(id => !selectedIds.includes(id))
+
+    const svcMap = Object.fromEntries(allServices.value.map(s => [s.id, s]))
+    await saveClinicServices(clinicId, toAdd.map(id => svcMap[id]))
+    await Promise.all(toRemove.map(id => deleteClinicQueue(clinicId, id)))
+
+    await updateClinic(clinicId, {
+      name:           form.name.trim(),
+      address:        form.address.trim(),
+      postalCode:     form.postalCode.trim(),
+      district:       form.district,
+      operatingHours: form.hours,
+      services:       selectedIds,
     })
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
@@ -155,6 +227,16 @@ async function save() {
     saving.value = false
   }
 }
+
+onMounted(async () => {
+  document.addEventListener('click', onClickOutside)
+  loadingServices.value = true
+  try {
+    allServices.value = await getAllServices()
+  } finally {
+    loadingServices.value = false
+  }
+})
 
 // Logs user out and redirects to clinic login page
 async function logout() {
@@ -174,6 +256,7 @@ watch(
       form.address       = c.address       || ''
       form.postalCode    = c.postalCode    || ''
       form.district      = c.district      || ''
+      form.services = Array.isArray(c.services) ? [...c.services] : []
       const storedHours = c.operatingHours || c.openingHours
       if (storedHours) {
         DAYS.forEach(d => {
@@ -297,6 +380,130 @@ watch(
   font-size: .8rem;
   color: #ef4444;
   margin: .25rem 0rem;
+}
 
+.services-loading {
+  font-size: .875rem;
+  color: #6b7280;
+}
+
+/* Dropdown trigger */
+.svc-dropdown {
+  position: relative;
+}
+
+.svc-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .65rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  background: white;
+  font-size: .875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color .15s;
+  text-align: left;
+}
+
+.svc-trigger:hover,
+.svc-dropdown.open .svc-trigger {
+  border-color: #3b82f6;
+}
+
+.svc-trigger--error {
+  border-color: #ef4444;
+}
+
+.svc-trigger__text {
+  flex: 1;
+  color: inherit;
+}
+
+.svc-trigger__chevron {
+  flex-shrink: 0;
+  color: #6b7280;
+  transition: transform .2s;
+}
+
+.svc-dropdown.open .svc-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown menu */
+.svc-menu {
+  margin-top: .35rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: .35rem;
+}
+
+.svc-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem .65rem;
+  border-radius: .35rem;
+  font-size: .875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.svc-item:hover {
+  background: #f0f9ff;
+}
+
+.svc-item--selected {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.svc-checkbox {
+  accent-color: #3b82f6;
+  flex-shrink: 0;
+}
+
+/* Selected tags */
+.svc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .25rem;
+}
+
+.svc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .2rem .55rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: .78rem;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.svc-tag__remove {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #60a5fa;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.svc-tag__remove:hover {
+  color: #1d4ed8;
 }
 </style>
